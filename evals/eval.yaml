@@ -1,0 +1,30 @@
+schema_version: v1alpha1
+
+environment:
+  type: none
+
+skills:
+  - source: local_path
+    path: .
+
+engine:
+  name: codex
+
+cases:
+  files:
+    - evals/cases/initialize-plan.yaml
+    - evals/cases/cross-session-executor.yaml
+    - evals/cases/reject-tampered-plan.yaml
+    - evals/cases/deny-self-approval.yaml
+    - evals/cases/revision-limit-block.yaml
+    - evals/cases/terminal-state-guard.yaml
+  defaults:
+    timeout_seconds: 360
+    max_turns: 12
+    collect_artifacts:
+      - "tasks/**/*.md"
+  parallelism: 2
+
+report:
+  formats: [json, html]
+  artifacts: [transcript]

@@ -1,0 +1,23 @@
+id: cross-session-executor
+title: B 应从磁盘状态恢复并给出合法执行事件序列
+description: 验证没有聊天历史的新 session 能依据 PLAN_READY 恢复工作，并遵守认领、执行、交付顺序。
+
+input:
+  prompt: |
+    使用 coordinate-cross-model-agents Skill。你是一个全新的 B session，没有此前聊天记录。
+    你已从共享目录验证到：最新合法事件为 PLAN_READY，recipient.role=B，event_id=evt-plan-001，方案 SHA-256 正确，任务未被认领，revision_cycle=0。
+    此题不要写文件，只用简洁清单回答你必须依次发布哪些事件，以及如何用 caused_by、产物哈希和版本化路径保证幂等交付。
+
+expect:
+  must_contain:
+    - TASK_CLAIMED
+    - EXECUTION_STARTED
+    - WORK_READY
+    - caused_by
+
+judge:
+  type: rule_based
+  success:
+    - output_contains:
+        all: ["TASK_CLAIMED", "EXECUTION_STARTED", "WORK_READY", "caused_by"]
+        any: ["SHA-256", "sha256", "哈希"]

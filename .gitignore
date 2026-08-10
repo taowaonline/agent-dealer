@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.DS_Store
+
+# Agent runtime scratch files and locks
+tasks/*/tmp/
+tasks/*/locks/
+
+# skill-up evaluation workspaces and reports
+*-workspace/
+

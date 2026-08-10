@@ -1,0 +1,30 @@
+id: initialize-plan
+title: A 应初始化任务并发布可执行方案
+description: 验证架构师能在全新工作区创建协议目录、控制文件、事件日志和版本化方案。
+
+input:
+  prompt: |
+    使用 coordinate-cross-model-agents Skill 处理以下任务。
+    你担任 A，同时被授权初始化任务 task-eval-001。目标是设计一个 Python 命令行工具，把 CSV 转成 JSON；此轮只规划，不实施。
+    请在当前工作区按协议创建任务目录和必要文件，使用默认 90 分质量门与最多 3 次返工，完成到 PLAN_READY 后停止。最终回复说明当前状态和下一执行角色。
+
+constraints:
+  timeout_seconds: 360
+  max_turns: 12
+
+expect:
+  must_contain: ["PLAN_READY", "B"]
+  files_exist:
+    - tasks/task-eval-001/control.md
+    - tasks/task-eval-001/coordination.md
+    - tasks/task-eval-001/artifacts/plans/plan-v001.md
+
+judge:
+  type: rule_based
+  success:
+    - output_contains:
+        all: ["PLAN_READY", "B"]
+    - files_exist:
+        - tasks/task-eval-001/control.md
+        - tasks/task-eval-001/coordination.md
+        - tasks/task-eval-001/artifacts/plans/plan-v001.md
