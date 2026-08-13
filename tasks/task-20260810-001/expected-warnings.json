@@ -1,0 +1,12 @@
+{
+  "_comment": "task-20260810-001 制定时协议尚无 actor.model 真实标识规则（该规则在 task-20260810-002 引入）。以下 7 个历史事件的占位 model 显式 grandfather 为告警；csv2json.py 的哈希漂移由后续 WORK_READY 事件 supersede 自动降级。本文件不修改任何历史事件。",
+  "downgrade": [
+    {"event_id": "bee91bb9-d764-4ada-ac12-fbf27c8891d6", "rule": "placeholder-model"},
+    {"event_id": "4cbc7bd6-795c-4ef1-8f88-94f3f067c15e", "rule": "placeholder-model"},
+    {"event_id": "572f8051-8eed-4f97-8618-4165644ee9e2", "rule": "placeholder-model"},
+    {"event_id": "19314fb5-ce8f-48bf-a8d9-b58c3e2f34fc", "rule": "placeholder-model"},
+    {"event_id": "00ecf1f6-b8df-4071-817b-77da19e3f34b", "rule": "placeholder-model"},
+    {"event_id": "2f34e1e7-eb08-4cda-8ec7-c388fcaabc77", "rule": "placeholder-model"},
+    {"event_id": "81153f16-4964-4a29-8158-965b1dcb3f10", "rule": "placeholder-model"}
+  ]
+}

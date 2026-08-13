@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python-version: ["3.9", "3.11", "3.13"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Compile check
+        run: python -m compileall src tests
+      - name: Unit tests
+        run: python -m unittest discover -s tests/unit
+      - name: Integration tests
+        run: python -m unittest discover -s tests/integration
+      - name: Golden example doctor
+        run: collab doctor examples/quickstart
+      - name: Real tasks doctor (grandfathered)
+        run: |
+          collab doctor tasks/task-20260810-001
+          collab doctor tasks/task-20260810-002
+      - name: Legacy expected-failure samples still fail
+        run: |
+          set -e
+          if collab validate examples/legacy-expected-failure/task-bad-hash >/dev/null 2>&1; then
+            echo "task-bad-hash should fail but passed"; exit 1
+          fi
+          if collab validate examples/legacy-expected-failure/task-placeholder-model >/dev/null 2>&1; then
+            echo "task-placeholder-model should fail but passed"; exit 1
+          fi
+      - name: Secret scan (src only)
+        # 仅扫描运行时代码；tests/ 与 fixtures/ 含故意写入的示例密钥用于回归校验。
+        run: |
+          python -c "from agent_collaboration.security import scan_tree_secrets; import sys; f=scan_tree_secrets('src'); print(f); sys.exit(1 if f else 0)"
+      - name: Coverage
+        run: |
+          coverage run -m unittest discover -s tests
+          coverage report --fail-under=90

@@ -1,0 +1,15 @@
+{
+  "_comment": "本目录保存故意失败的协议样例，用于回归校验器的负例能力。doctor/CI 以本清单为准：只有实际错误规则集与 expected_rules 完全一致才算通过。历史真实任务见 tasks/（task-20260810-001 通过 expected-warnings.json 显式 grandfather 后校验通过）。",
+  "samples": {
+    "task-bad-hash": {
+      "expect_ok": false,
+      "expected_rules": ["hash-mismatch"],
+      "note": "产物哈希被篡改，必须报错"
+    },
+    "task-placeholder-model": {
+      "expect_ok": false,
+      "expected_rules": ["placeholder-model"],
+      "note": "新事件使用占位 model，必须报错（历史 grandfather 见 tasks/task-20260810-001/expected-warnings.json）"
+    }
+  }
+}

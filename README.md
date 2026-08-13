@@ -1,53 +1,105 @@
 # Agent Collaboration
 
-一个厂商无关的多 Agent 协作 Skill。Claude、Codex、Kimi、Cursor 或本地模型可以通过同一个共享目录，在不同客户端、不同 session 之间规划、执行、审查和返工。
+厂商无关的跨模型 Agent 协作运行时。Claude Code、Codex、Kimi、Cursor 或本地模型不需要共享厂商会话，只通过共享目录里的结构化事件、版本化产物和 SHA-256 哈希即可完成规划、执行、审查与返工。
 
-它不依赖某家模型的 Agent Team 或会话共享能力。协作状态由只追加事件、版本化产物、SHA-256 哈希和 `control.md` 策略共同维护。
+**当前状态：Developer Preview（v0.1.0）。** 默认威胁模型为可信本地客户端（见 [SECURITY.md](SECURITY.md)）。
 
-## 核心能力
-
-- A 负责方案和审查，B 负责通用执行，C 负责视觉与多模态执行
-- 支持跨模型、跨客户端、跨 session 恢复
-- 结构化事件代替不可靠的文末“完成关键字”
-- 角色权限、质量门、自审批拦截和终态保护
-- 默认 90/100 达标，最多 3 次自动返工
-- 产物哈希、事件因果链、路径权限和符号链接逃逸检查
-- 候选事件发布前验证，避免污染只追加日志
-- 支持并行子任务的认领、完成和汇总审查
-
-## 使用方式
-
-让参与协作的客户端都能读写同一个项目目录，并要求每个 Agent 首先阅读 [`SKILL.md`](SKILL.md)。
-
-例如，对新的 B Agent 说：
-
-> 请阅读本项目的 SKILL.md。你担任 B，从共享目录恢复任务状态，验证 control.md、coordination.md 和所有产物哈希；只处理 recipient 指向 B 且权限允许的任务。发布事件前先运行候选校验。
-
-验证任务事件链：
+## 安装
 
 ```bash
-python3 tools/validate.py tasks/<task-id>
+python -m venv .venv && .venv/bin/pip install -e .
 ```
 
-发布新事件前进行只读候选校验：
+运行时零第三方依赖，Python ≥ 3.8。
+
+## 五分钟 Quick Start
 
 ```bash
-python3 tools/validate.py tasks/<task-id> --candidate tasks/<task-id>/tmp/event.json
+# 1. 创建任务（目录、control.md、TASK_CREATED 事件一步到位）
+collab init task-demo-001 --title "我的第一个协作任务" --model kimi-k2.5
+
+# 2. 诊断任务健康度
+collab doctor tasks/task-demo-001
+
+# 3. 查看下一步该谁行动
+collab next tasks/task-demo-001
+
+# 4. 准备并预校验一个事件（PLANNING_STARTED）
+collab event prepare tasks/task-demo-001 --type PLANNING_STARTED --role A --model gpt-5.6-luna --out tasks/task-demo-001/tmp/e.json
+collab publish --dry-run tasks/task-demo-001 tasks/task-demo-001/tmp/e.json
+
+# 5. 原子发布（锁 + 预校验 + 追加 + 复核，一次完成）
+collab publish tasks/task-demo-001 tasks/task-demo-001/tmp/e.json --instance-id my-session
 ```
 
-验证器仅使用 Python 标准库。
+一个从 `TASK_CREATED` 到 `REVIEW_APPROVED` 全部校验通过的完整样例在 [`examples/quickstart`](examples/quickstart)：
+
+```bash
+collab doctor examples/quickstart
+```
+
+## 角色与流程
+
+- **A**：架构师与审查者——规划、拆分任务、严格审查（不接受执行者自评分）。
+- **B**：通用执行者——代码、测试、文档。
+- **C**：视觉与多模态执行者——图片与多模态任务。
+
+```text
+CREATED → PLANNING → PLAN_READY → CLAIMED → EXECUTING → WORK_READY → REVIEWING
+        → APPROVED（终态）/ REVISION_REQUIRED（≤3 次返工）/ BLOCKED
+```
+
+完整协议见 [`SKILL.md`](SKILL.md)（Agent 必读）与 [`docs/protocol.md`](docs/protocol.md)（人类参考）。
+
+## 客户端指南
+
+| 客户端 | 指南 |
+| --- | --- |
+| Claude Code | [docs/client-guides/claude-code.md](docs/client-guides/claude-code.md) |
+| Codex | [docs/client-guides/codex.md](docs/client-guides/codex.md) |
+| Kimi | [docs/client-guides/kimi.md](docs/client-guides/kimi.md) |
+| Cursor | [docs/client-guides/cursor.md](docs/client-guides/cursor.md) |
+
+手动模式不需要为本项目配置 API key——各客户端使用自己的登录状态。
+
+## Runner（可选）
+
+```bash
+# adapters.json: {"B": {"type": "manual"}}
+collab watch tasks/task-demo-001 --adapters adapters.json
+```
+
+Runner 只负责唤醒与监控，不替 Agent 伪造审查。详见 [docs/protocol.md](docs/protocol.md#runner)。
+
+## 故障排查
+
+| 症状 | 处理 |
+| --- | --- |
+| `MMAC-E401_LOCK_CONFLICT` | 读 `locks/coordination.lock/owner.json`；租约过期可安全接管 |
+| `MMAC-E301_HASH_MISMATCH` | 重算哈希 `shasum -a 256 <file>`；合法演进会被 supersede 规则降级为告警 |
+| 历史任务校验报错 | 在任务目录写 `expected-warnings.json` 显式 grandfather（见 `tasks/task-20260810-001/`） |
+| 校验器全部错误码 | [docs/protocol.md#错误码](docs/protocol.md) |
 
 ## 测试
 
 ```bash
-python3 -m unittest tasks.task-20260810-002.fixtures.test_validate_fixtures -v
-skill-up validate evals/eval.yaml
-skill-up run evals/eval.yaml
+python -m unittest discover -s tests        # 203 项核心测试
+python -m unittest tools.csv2json.tests.test_csv2json  # 22 项示例测试
+python -m unittest tasks.task-20260810-002.fixtures.test_validate_fixtures  # 22 项兼容测试
+skill-up validate evals/eval.yaml           # Agent 行为评测配置
 ```
 
-当前回归结果：22 项协议测试通过，6 项 Agent 行为评测通过。
+当前共 247 项确定性测试通过；核心包覆盖率 91%。
 
-## API key
+## 目录结构
 
-手动使用 Claude、Codex、Kimi 或 Cursor 客户端协作时，不需要给这个 Skill 配置 API key，各客户端继续使用自己的登录状态。只有外部 runner 需要直接调用厂商 API 时，才需要在 runner 的安全凭据存储中配置相应密钥；不要把密钥写入协作事件或产物。
-
+```text
+src/agent_collaboration/   核心库与 CLI
+tests/                     unit / integration / fixtures
+examples/quickstart/       黄金样例（doctor 零错误）
+examples/legacy-expected-failure/  故意失败样例（expected-errors.json 清单）
+docs/                      协议、安全、客户端指南
+references/                事件 schema、状态机、rubric 速查
+tasks/                     真实协作任务工作区
+evals/                     skill-up Agent 行为评测
+```

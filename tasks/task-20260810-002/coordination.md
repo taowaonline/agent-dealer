@@ -376,3 +376,28 @@
 }
 ```
 <!-- MMAC-EVENT-END -->
+
+<!-- MMAC-EVENT-BEGIN -->
+```json
+{
+  "protocol_version": "1.0",
+  "event_id": "f61c4fd1-492e-4196-812b-d5f48892fb97",
+  "previous_event_id": "445e4f3f-51c8-4548-9099-73765fa38bfe",
+  "task_id": "task-20260810-002",
+  "parent_task_id": null,
+  "type": "WORK_READY",
+  "status": "WORK_READY",
+  "actor": {"role": "B", "instance_id": "kimi-session-b-002", "provider": "moonshot", "client": "kimi-cli", "model": "kimi-k2.5"},
+  "recipient": {"role": "A"},
+  "caused_by": "c0a4f0ba-02e2-4f11-9a24-0b199bc2d4c6",
+  "revision_cycle": 1,
+  "timestamp": "2026-08-11T11:39:05+08:00",
+  "artifacts": [
+    {"path": "artifacts/executions/execution-b-v002.md", "sha256": "71229179aeef03932a6e680a7e7bf17d1609049fcc8b176ec66e6e597784e0ed", "media_type": "text/markdown", "version": 1},
+    {"path": "/Users/tommacmini4/Documents/code/agent_collaboration/SKILL.md", "sha256": "d23b86fd182c830c0a2a6ae990caff5f40c74bea9c95616854cdb32c76d3e030", "media_type": "text/markdown", "version": 3}
+  ],
+  "summary": "ISSUE-002 修复完成：SKILL.md 统一错误/告警语义，§6 附加约束新增 grandfather 与 supersede 唯一定义点，§3/§12 对齐",
+  "payload": {"issue": "ISSUE-002", "note": "项目将按 docs/full-assessment-and-95-plan-2026-08-11.md 进入产品化重构，本任务 C 端修复完成后由 A 复审收官"}
+}
+```
+<!-- MMAC-EVENT-END -->

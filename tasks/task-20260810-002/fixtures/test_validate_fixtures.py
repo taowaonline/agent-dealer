@@ -116,15 +116,18 @@ class LegacyCompatibilityTests(unittest.TestCase):
 
     def test_task_001_readable_with_legacy_fallback(self):
         r = run(self.TASK_001)
-        # task-001 历史中：
-        # - 多个 actor.model='configured-model' 占位符 → 新规则下报错（合理）
-        # - csv2json.py 经 cycle=1 修复后内容变化，与 cycle=0 WORK_READY 哈希不匹配 → 报错（合理）
-        # - 相对项目根路径产物 → 通过 legacy fallback 解析，打印告警
-        # 校验：必须能读取日志、解析全部事件、报告最终 APPROVED 状态
+        # task-001 的历史问题通过两套机制 grandfather 为告警：
+        # - 7 个 actor.model='configured-model' → expected-warnings.json 显式降级
+        # - csv2json.py 哈希漂移 → 后续 WORK_READY supersede 自动降级
+        # - 相对项目根路径产物 → legacy fallback 解析并打印告警
+        # 校验：日志可读、最终 APPROVED 状态可读、退出码 0、不掩盖问题（以告警形式呈现）
+        self.assertEqual(r.returncode, 0, r.stdout)
         self.assertIn("当前状态：APPROVED", r.stdout, r.stdout)
         self.assertIn("legacy fallback", r.stdout)
-        # 历史可读，但应当报已知问题（不掩盖）
-        self.assertIn("个错误", r.stdout)
+        self.assertIn("grandfathered", r.stdout)
+        self.assertIn("个告警", r.stdout)
+        # 历史可读后不得再报 error
+        self.assertNotIn("个错误", r.stdout)
 
     def test_task_002_after_C_claim_will_be_valid(self):
         # 此测试仅验证：当前 task-002 状态可被解析

@@ -1,0 +1,9 @@
+{
+  "_comment": "task-20260810-002 是协议自举任务：其实施产物（SKILL.md、tools/validate.py、tasks/task-20260810-002/fixtures/{gen.py,test_validate_fixtures.py}）在后续 P0/P1 大重构（src/agent_collaboration 包化、CLI、Runner、安全边界、黄金样例）中被合法重写。重构跨越多条事件边界，未对每次文件改动都发布新的 WORK_READY；这些 hash-mismatch 由本清单显式 grandfather 为告警，避免协议演示任务被误判为损坏。新事件使用占位 model、坏 SHA-256 等仍按 error 处理；本清单不修改任何历史事件，仅影响校验输出级别。",
+  "downgrade": [
+    {"event_id": "04c8995e-c9d7-408e-98f6-3850f9bdb012", "rule": "hash-mismatch", "path": "/Users/tommacmini4/Documents/code/agent_collaboration/tools/validate.py", "reason": "P0/P1 重构：validate.py 转为 src/agent_collaboration/validator.py 的兼容 shim"},
+    {"event_id": "04c8995e-c9d7-408e-98f6-3850f9bdb012", "rule": "hash-mismatch", "path": "fixtures/gen.py", "reason": "P0/P1 重构：fixture 生成器扩展为覆盖 symlink/heartbeat/self_approval/low_score/revision_limit/unauthorized_reopen 等新增负例"},
+    {"event_id": "04c8995e-c9d7-408e-98f6-3850f9bdb012", "rule": "hash-mismatch", "path": "fixtures/test_validate_fixtures.py", "reason": "P0/P1 重构：测试套件扩展到 22 用例并接入 expected-warnings/grandfathered 断言"},
+    {"event_id": "f61c4fd1-492e-4196-812b-d5f48892fb97", "rule": "hash-mismatch", "path": "/Users/tommacmini4/Documents/code/agent_collaboration/SKILL.md", "reason": "P0/P1 重构：SKILL.md 拆分为 docs/protocol.md + docs/security.md + references/，主文件精简到约 300 行"}
+  ]
+}
