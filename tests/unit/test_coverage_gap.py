@@ -11,9 +11,9 @@ from io import StringIO
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from helpers import TaskTestCase, append_event, make_event  # noqa: E402
-from agent_collaboration.cli import main as cli_main  # noqa: E402
-from agent_collaboration.store import TaskStore  # noqa: E402
-from agent_collaboration.adapters.command import CommandAdapter  # noqa: E402
+from agent_dealer.cli import main as cli_main  # noqa: E402
+from agent_dealer.store import TaskStore  # noqa: E402
+from agent_dealer.adapters.command import CommandAdapter  # noqa: E402
 
 
 class CliCoverageTests(TaskTestCase):

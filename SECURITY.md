@@ -18,7 +18,7 @@
 - 角色事件授权（planner/executor/reviewer 分离，执行者不得自审）。
 - 产物 SHA-256 校验、路径穿越与符号链接逃逸拦截、`allowed_paths`/`forbidden_paths` 检查。
 - 文件基线快照与变更审计（发现实际修改超出申报范围）。
-- 密钥/令牌脱敏扫描（`collab doctor` 内含）。
+- 密钥/令牌脱敏扫描（`agent-dealer doctor` 内含）。
 - 终态保护、返工上限、人工审批清单（`require_human_approval_for`）。
 
 ## 已知边界（诚实声明）

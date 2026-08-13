@@ -3,13 +3,13 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "agent-collaboration"
-version = "0.1.0"
+name = "agent-dealer"
+version = "0.2.0"
 description = "Vendor-neutral cross-model agent collaboration runtime over a shared directory (MMAC protocol)"
 readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "MIT"}
-authors = [{name = "agent_collaboration contributors"}]
+authors = [{name = "agent_dealer contributors"}]
 keywords = ["multi-agent", "collaboration", "llm", "protocol"]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -30,7 +30,9 @@ classifiers = [
 dev = ["coverage>=7", "build>=1", "twine>=5"]
 
 [project.scripts]
-collab = "agent_collaboration.cli:main"
+agent-dealer = "agent_dealer.cli:main"
+agent_dealer = "agent_dealer.cli:main"
+collab = "agent_dealer.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

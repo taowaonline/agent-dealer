@@ -1,0 +1,7 @@
+interface:
+  display_name: "Agent Dealer"
+  short_description: "跨模型、跨客户端的共享目录 Agent 协作"
+  default_prompt: "Use $agent-dealer to coordinate this task across independent model clients through the shared workspace."
+
+policy:
+  allow_implicit_invocation: true

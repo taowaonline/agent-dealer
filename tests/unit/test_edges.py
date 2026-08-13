@@ -10,13 +10,13 @@ from io import StringIO
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from helpers import TaskTestCase, append_event, make_artifact, make_event, review_payload  # noqa: E402
-from agent_collaboration import validator  # noqa: E402
-from agent_collaboration.cli import main as cli_main  # noqa: E402
-from agent_collaboration.errors import MMACError  # noqa: E402
-from agent_collaboration.runner import Runner  # noqa: E402
-from agent_collaboration.adapters.base import Adapter  # noqa: E402
-from agent_collaboration.adapters.command import CommandAdapter  # noqa: E402
-from agent_collaboration.adapters.manual import ManualAdapter  # noqa: E402
+from agent_dealer import validator  # noqa: E402
+from agent_dealer.cli import main as cli_main  # noqa: E402
+from agent_dealer.errors import MMACError  # noqa: E402
+from agent_dealer.runner import Runner  # noqa: E402
+from agent_dealer.adapters.base import Adapter  # noqa: E402
+from agent_dealer.adapters.command import CommandAdapter  # noqa: E402
+from agent_dealer.adapters.manual import ManualAdapter  # noqa: E402
 
 
 class ControlParseEdgeTests(TaskTestCase):

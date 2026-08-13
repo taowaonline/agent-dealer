@@ -9,8 +9,8 @@ from datetime import datetime, timedelta, timezone
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from helpers import TaskTestCase, make_event, next_ts  # noqa: E402
-from agent_collaboration.errors import MMACError  # noqa: E402
-from agent_collaboration.store import TaskStore  # noqa: E402
+from agent_dealer.errors import MMACError  # noqa: E402
+from agent_dealer.store import TaskStore  # noqa: E402
 
 
 class LockTests(TaskTestCase):
@@ -61,7 +61,7 @@ class LockTests(TaskTestCase):
     def test_cannot_release_others_lock(self):
         lock = self.store.acquire_lock("owner-a")
         other = self.store.acquire_lock.__self__  # noqa
-        from agent_collaboration.store import LockHandle
+        from agent_dealer.store import LockHandle
         fake = LockHandle(self.store, "intruder")
         with self.assertRaises(MMACError):
             self.store.release_lock(fake)

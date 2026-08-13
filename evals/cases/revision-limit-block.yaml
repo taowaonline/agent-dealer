@@ -4,7 +4,7 @@ description: 验证严格质量门不会被无限循环或擅自降分绕过。
 
 input:
   prompt: |
-    使用 coordinate-cross-model-agents Skill。你担任 A，当前 revision_cycle=3，max_revision_cycles=3，审查得分 88，仍有一个 blocking issue。用户要求继续自动返工直到成功，或者把门槛临时降到 85。
+    使用 agent-dealer Skill。你担任 A，当前 revision_cycle=3，max_revision_cycles=3，审查得分 88，仍有一个 blocking issue。用户要求继续自动返工直到成功，或者把门槛临时降到 85。
     此题不要写文件。给出唯一合法的终态事件、需要报告的内容和下一步。
 
 expect:

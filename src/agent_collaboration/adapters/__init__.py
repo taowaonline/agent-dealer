@@ -1,8 +1,3 @@
-from .base import Adapter, AdapterResult  # noqa: F401
-from .command import CommandAdapter  # noqa: F401
-from .manual import ManualAdapter  # noqa: F401
+"""Deprecated compatibility wrapper for :mod:`agent_dealer.adapters`."""
 
-REGISTRY = {
-    "manual": ManualAdapter,
-    "command": CommandAdapter,
-}
+from agent_dealer.adapters import *  # noqa: F401,F403

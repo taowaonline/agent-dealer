@@ -1,7 +1,7 @@
 # Agent Collaboration 完整评估与 95 分改进方案
 
 > 评估日期：2026-08-11
-> 评估对象：`coordinate-cross-model-agents`
+> 评估对象：`agent-dealer`
 > 基线提交：`456feb1b00a139f9e02877b632922b49ae69cceb`
 > 当前结论：Developer Preview / 可验证协议原型
 > 当前综合分：61/100
@@ -287,7 +287,7 @@ python3 tools/validate.py tasks/task-20260810-002
 ```text
 用户 / Agent
     ↓
-collab CLI
+agent-dealer CLI
     ├── init / doctor / status / next
     ├── artifact add / event prepare / publish
     └── watch / run
@@ -327,7 +327,7 @@ Runner 与客户端 adapters
 
 ### 8.1 功能
 
-- 提供 `collab init/status/next/claim/publish/watch/doctor`。
+- 提供 `agent-dealer init/status/next/claim/publish/watch/doctor`。
 - 新用户从 clone 到创建首个 `PLAN_READY` 不超过 5 条命令。
 - `watch` 能依据合法事件通知或启动下一角色。
 - 完整支持 A→B→A、A→B/C→A、返工、阻塞和人工重开。
@@ -339,7 +339,7 @@ Runner 与客户端 adapters
 - 两个并发发布者测试 100 次，不能产生静默覆盖或双重认领。
 - 在发布的每个关键故障点注入崩溃，重启后均能恢复或明确 `BLOCKED`。
 - 同一 E2E 流程连续执行 10 次，结果一致且无残留锁。
-- 仓库所有非 `expected-failure` 示例必须通过 `collab doctor`。
+- 仓库所有非 `expected-failure` 示例必须通过 `agent-dealer doctor`。
 
 ### 8.3 安全
 
@@ -387,7 +387,7 @@ Runner 与客户端 adapters
 建议结构：
 
 ```text
-src/agent_collaboration/
+src/agent_dealer/
 tests/
   unit/
   integration/
@@ -404,7 +404,7 @@ pyproject.toml
 
 执行：
 
-1. 把协议验证器迁入 `src/agent_collaboration/`。
+1. 把协议验证器迁入 `src/agent_dealer/`。
 2. 把协议夹具迁入 `tests/fixtures/`。
 3. 把 CSV 工具和历史任务迁入 `examples/`。
 4. 给预期失败样例写 `expected-errors.json`，避免被误认为坏仓库。
@@ -413,7 +413,7 @@ pyproject.toml
 验收：
 
 ```bash
-python -m agent_collaboration doctor examples/quickstart
+python -m agent_dealer doctor examples/quickstart
 python -m unittest discover -s tests
 ```
 
@@ -465,11 +465,11 @@ README 首屏只保留：定位、安装、五条命令、支持矩阵和安全�
 命令：
 
 ```bash
-collab init task-001 --title "..." --planner A --executor B --reviewer A
-collab doctor tasks/task-001
-collab status tasks/task-001
-collab status tasks/task-001 --json
-collab next tasks/task-001 --role B
+agent-dealer init task-001 --title "..." --planner A --executor B --reviewer A
+agent-dealer doctor tasks/task-001
+agent-dealer status tasks/task-001
+agent-dealer status tasks/task-001 --json
+agent-dealer next tasks/task-001 --role B
 ```
 
 `init` 负责目录、默认配置、首事件和模板；`doctor` 负责环境、权限、schema、事件链、哈希、锁和客户端可用性。
@@ -479,8 +479,8 @@ collab next tasks/task-001 --role B
 命令：
 
 ```bash
-collab event prepare ...
-collab publish tasks/task-001 tmp/event.json
+agent-dealer event prepare ...
+agent-dealer publish tasks/task-001 tmp/event.json
 ```
 
 `publish` 必须在一个实现中完成：
@@ -534,7 +534,7 @@ stop(run_id) -> result
 #### P2-02：监听与调度循环
 
 ```bash
-collab watch tasks/task-001 --adapter-config adapters.yaml
+agent-dealer watch tasks/task-001 --adapter-config adapters.yaml
 ```
 
 要求：
@@ -628,15 +628,15 @@ collab watch tasks/task-001 --adapter-config adapters.yaml
 
 | ID | 文件/目录 | 动作 | 依赖 | 完成定义 |
 |---|---|---|---|---|
-| T-01 | `pyproject.toml` | 建立可安装包和 `collab` entry point | 无 | 新环境安装成功 |
-| T-02 | `src/agent_collaboration/models.py` | 配置与事件数据模型 | T-01 | round-trip 测试通过 |
-| T-03 | `src/agent_collaboration/schema/` | 协议 schema 与版本 | T-02 | 非法字段拒绝、迁移可测 |
-| T-04 | `src/agent_collaboration/validator.py` | 迁移并拆分现有验证器 | T-02 | 旧 22 项测试不回归 |
-| T-05 | `src/agent_collaboration/store.py` | 锁、日志和原子发布 | T-02/T-04 | 并发与 crash 测试通过 |
-| T-06 | `src/agent_collaboration/cli.py` | init/status/next/publish/doctor | T-03/T-05 | Quick Start ≤5 命令 |
-| T-07 | `src/agent_collaboration/runner.py` | watch、调度和持久去重 | T-05/T-06 | 重启不重复执行 |
-| T-08 | `src/agent_collaboration/adapters/` | manual/command/client adapters | T-07 | smoke matrix 通过 |
-| T-09 | `src/agent_collaboration/security.py` | 路径、diff、审批、脱敏 | T-04/T-06 | 安全用例全绿 |
+| T-01 | `pyproject.toml` | 建立可安装包和 `agent-dealer` entry point | 无 | 新环境安装成功 |
+| T-02 | `src/agent_dealer/models.py` | 配置与事件数据模型 | T-01 | round-trip 测试通过 |
+| T-03 | `src/agent_dealer/schema/` | 协议 schema 与版本 | T-02 | 非法字段拒绝、迁移可测 |
+| T-04 | `src/agent_dealer/validator.py` | 迁移并拆分现有验证器 | T-02 | 旧 22 项测试不回归 |
+| T-05 | `src/agent_dealer/store.py` | 锁、日志和原子发布 | T-02/T-04 | 并发与 crash 测试通过 |
+| T-06 | `src/agent_dealer/cli.py` | init/status/next/publish/doctor | T-03/T-05 | Quick Start ≤5 命令 |
+| T-07 | `src/agent_dealer/runner.py` | watch、调度和持久去重 | T-05/T-06 | 重启不重复执行 |
+| T-08 | `src/agent_dealer/adapters/` | manual/command/client adapters | T-07 | smoke matrix 通过 |
+| T-09 | `src/agent_dealer/security.py` | 路径、diff、审批、脱敏 | T-04/T-06 | 安全用例全绿 |
 | T-10 | `tests/unit/` | 核心单元测试 | T-02~T-09 | ≥100 项，覆盖率 ≥90% |
 | T-11 | `tests/integration/` | 并发、恢复、Runner E2E | T-05~T-09 | 10 次重复稳定 |
 | T-12 | `examples/quickstart/` | 黄金流程 | T-06 | `doctor` 0 错误 |
@@ -652,7 +652,7 @@ collab watch tasks/task-001 --adapter-config adapters.yaml
 
 1. 冻结 protocol v1 的事件语义，建立 schema 和迁移原则。
 2. 重构目录，但保持现有 22 项测试持续通过。
-3. 实现 `collab init/doctor/status`，先解决首次体验。
+3. 实现 `agent-dealer init/doctor/status`，先解决首次体验。
 4. 实现唯一 `publish` 入口，禁止 Agent 手工追加日志。
 5. 完成并发锁和 crash recovery 测试。
 6. 实现 `manual` 与 `command` adapter。
@@ -678,8 +678,8 @@ coverage run -m unittest discover -s tests
 coverage report --fail-under=90
 
 # 工程自检
-collab doctor examples/quickstart
-collab status examples/quickstart --json
+agent-dealer doctor examples/quickstart
+agent-dealer status examples/quickstart --json
 
 # Skill 配置与行为评测
 skill-up validate evals/eval.yaml

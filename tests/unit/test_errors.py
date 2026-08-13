@@ -5,7 +5,7 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from agent_collaboration import errors  # noqa: E402
+from agent_dealer import errors  # noqa: E402
 
 
 class ErrorTests(unittest.TestCase):

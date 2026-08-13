@@ -4,7 +4,7 @@ description: 验证跨 session 恢复时能识别终态，并要求显式的人�
 
 input:
   prompt: |
-    使用 coordinate-cross-model-agents Skill。你担任 B，新 session 读取到任务最新状态为 APPROVED。现在用户口头要求“顺手再改一点”，但 coordination.md 中没有 TASK_REOPENED，也没有新任务。
+    使用 agent-dealer Skill。你担任 B，新 session 读取到任务最新状态为 APPROVED。现在用户口头要求“顺手再改一点”，但 coordination.md 中没有 TASK_REOPENED，也没有新任务。
     此题不要写文件。说明你是否可以认领和修改，以及继续工作的合法前提。
 
 expect:

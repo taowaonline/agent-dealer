@@ -8,7 +8,7 @@ import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "src"))
 
-from agent_collaboration import validator  # noqa: E402
+from agent_dealer import validator  # noqa: E402
 
 CONTROL = """```yaml
 protocol:

@@ -9,10 +9,10 @@
 
 | ID | 文件 | 缺陷 | 修复 | 证据 |
 |---|---|---|---|---|
-| FIX-1 | `src/agent_collaboration/store.py:294-296` | `stage_artifact` 在 macOS 上误拒合法相对路径。`os.path.realpath(dest)` 解析 `/tmp`→`/private/tmp` 符号链接，但 `task_dir` 仅经 `abspath`，二者 `commonpath` 不一致 → 误报"产物目标越出任务目录"。 | 改为 `task_real = os.path.realpath(self.task_dir)` 与 `dest = os.path.realpath(os.path.join(task_real, dest_rel))` 一致规范化。 | `tests/unit/test_store.py::ArtifactStagingTests` + `tests/integration/test_crash_and_e2e.py` 此前 6 errors，修复后 0。 |
-| FIX-2 | `src/agent_collaboration/security.py` | `scan_tree_secrets` 继承 `DEFAULT_IGNORES`，会跳过 `tmp/`。但暂存目录同样可能泄露密钥，doctor 漏报 `tmp/leak.txt` 中的 AWS key。 | 引入 `SECRET_IGNORES = (".git", "__pycache__", ".DS_Store")`，密钥扫描不再跳过 `tmp/`/`locks/`。 | `tests/unit/test_cli.py::test_doctor_detects_secret` 之前 fail，现在 pass。 |
+| FIX-1 | `src/agent_dealer/store.py:294-296` | `stage_artifact` 在 macOS 上误拒合法相对路径。`os.path.realpath(dest)` 解析 `/tmp`→`/private/tmp` 符号链接，但 `task_dir` 仅经 `abspath`，二者 `commonpath` 不一致 → 误报"产物目标越出任务目录"。 | 改为 `task_real = os.path.realpath(self.task_dir)` 与 `dest = os.path.realpath(os.path.join(task_real, dest_rel))` 一致规范化。 | `tests/unit/test_store.py::ArtifactStagingTests` + `tests/integration/test_crash_and_e2e.py` 此前 6 errors，修复后 0。 |
+| FIX-2 | `src/agent_dealer/security.py` | `scan_tree_secrets` 继承 `DEFAULT_IGNORES`，会跳过 `tmp/`。但暂存目录同样可能泄露密钥，doctor 漏报 `tmp/leak.txt` 中的 AWS key。 | 引入 `SECRET_IGNORES = (".git", "__pycache__", ".DS_Store")`，密钥扫描不再跳过 `tmp/`/`locks/`。 | `tests/unit/test_cli.py::test_doctor_detects_secret` 之前 fail，现在 pass。 |
 | FIX-3 | `tasks/task-20260810-002/fixtures/test_validate_fixtures.py:117-127` | 测试断言 `"个错误"` 必须出现，但 task-001 经 `expected-warnings.json` grandfather 后已是 0 错误、15 告警。断言已与实际行为脱节。 | 改为：`returncode==0` + `assertIn("当前状态：APPROVED")` + `assertIn("grandfathered")` + `assertNotIn("个错误")`。 | 22 fixture 用例全过。 |
-| FIX-4 | `tasks/task-20260810-002/expected-warnings.json`（新建） | task-002 自举重构（P0/P1）合法重写了 SKILL.md、validate.py、gen.py、test_validate_fixtures.py，但早期事件仍引用旧哈希。validator 的 supersede 规则要求"同一逻辑路径在更晚事件中以更高 version 取代"才能降级，跨任务大重构不满足该条件 → 4 个 hash-mismatch 误判为 error。 | 新建 expected-warnings.json，按 task-001 同型机制将 4 条 hash-mismatch 显式 grandfather 为告警，附 `reason` 说明每条对应哪次 P0/P1 重构。不修改任何历史事件。 | `collab validate tasks/task-20260810-002` 现在 exit=0、4 告警、0 错误。 |
+| FIX-4 | `tasks/task-20260810-002/expected-warnings.json`（新建） | task-002 自举重构（P0/P1）合法重写了 SKILL.md、validate.py、gen.py、test_validate_fixtures.py，但早期事件仍引用旧哈希。validator 的 supersede 规则要求"同一逻辑路径在更晚事件中以更高 version 取代"才能降级，跨任务大重构不满足该条件 → 4 个 hash-mismatch 误判为 error。 | 新建 expected-warnings.json，按 task-001 同型机制将 4 条 hash-mismatch 显式 grandfather 为告警，附 `reason` 说明每条对应哪次 P0/P1 重构。不修改任何历史事件。 | `agent-dealer validate tasks/task-20260810-002` 现在 exit=0、4 告警、0 错误。 |
 | FIX-5 | `.github/workflows/ci.yml` | (a) `Legacy samples readable` 引用不存在的 `examples/legacy-expected-failure/task-20260810-001`；(b) `Secret scan` 扫描全仓，会把 `tests/unit/test_security.py` 中故意写入的符合 AWS key 形态的测试夹具误报为泄露，CI 必然失败。 | (a) 改为校验真实任务路径 `tasks/task-20260810-001/002` 与 expected-failure 路径 `examples/legacy-expected-failure/task-bad-hash`、`task-placeholder-model`；(b) 密钥扫描仅扫 `src/`（运行时代码），tests/fixtures 中的回归用例不进入 CI 扫描。 | 手工模拟两段 CI step 均返回预期 exit code。 |
 
 ## 1. 验证命令实录
@@ -25,14 +25,14 @@
 | `python -m unittest discover -s tools/csv2json/tests` | ✅ | ✅ **22 项全过** |
 | `python -m unittest tasks.task-20260810-002.fixtures.test_validate_fixtures` | ❌ 1 fail | ✅ **22 项全过** |
 | `coverage run + report --fail-under=90` | ✅ 91% | ✅ **91%（1772 statements, 160 missed）** |
-| `collab doctor examples/quickstart` | ✅ | ✅ 0 错误，APPROVED |
-| `collab doctor tasks/task-20260810-001` | ✅ | ✅ 0 错误、15 告警，APPROVED |
-| `collab doctor tasks/task-20260810-002` | ❌ 4 错误 | ✅ **0 错误、13 告警，WORK_READY** |
-| `collab validate examples/legacy-expected-failure/task-bad-hash` | — | ✅ exit 1（expected-failure 仍正确失败）|
-| `collab validate examples/legacy-expected-failure/task-placeholder-model` | — | ✅ exit 1（expected-failure 仍正确失败）|
+| `agent-dealer doctor examples/quickstart` | ✅ | ✅ 0 错误，APPROVED |
+| `agent-dealer doctor tasks/task-20260810-001` | ✅ | ✅ 0 错误、15 告警，APPROVED |
+| `agent-dealer doctor tasks/task-20260810-002` | ❌ 4 错误 | ✅ **0 错误、13 告警，WORK_READY** |
+| `agent-dealer validate examples/legacy-expected-failure/task-bad-hash` | — | ✅ exit 1（expected-failure 仍正确失败）|
+| `agent-dealer validate examples/legacy-expected-failure/task-placeholder-model` | — | ✅ exit 1（expected-failure 仍正确失败）|
 | `scan_tree_secrets('src')` | — | ✅ 空列表（src/ 中无密钥）|
 | `skill-up validate evals/eval.yaml` | ✅ | ✅ 6 用例配置有效 |
-| 全新 venv `pip install -e .` | ✅ | ✅ `collab` 入口可用 |
+| 全新 venv `pip install -e .` | ✅ | ✅ `agent-dealer` 入口可用 |
 
 **总测试数**：203（unit+integration） + 22（csv2json） + 22（fixtures）= **247 项全过**。
 
@@ -42,7 +42,7 @@
 
 | 门槛 | 状态 | 证据 |
 |---|---|---|
-| `collab init/status/next/claim/publish/watch/doctor` | ✅ | `cli.py` 全命令实现；`test_cli.py` 全命令覆盖。 |
+| `agent-dealer init/status/next/claim/publish/watch/doctor` | ✅ | `cli.py` 全命令实现；`test_cli.py` 全命令覆盖。 |
 | 从 clone 到首个 PLAN_READY ≤5 条命令 | ✅ | `tests/unit/test_cli.py::test_quickstart_path_within_five_commands` 实证通过。 |
 | watch 依据合法事件通知/启动下一角色 | ✅ | `runner.py` + `adapters/{manual,command}.py`；`test_runner.py` + `tests/integration/test_crash_and_e2e.py` 覆盖。 |
 | 完整 A→B→A、A→B/C→A、返工、阻塞、人工重开 | ✅ | 状态机、子任务、TASK_REOPENED 均覆盖；task-001 是真实 Kimi→GLM→Codex 协作记录。 |
@@ -134,5 +134,5 @@
 
 - v2 修复后**真实得分 87/100**，比 v1 自评 84 略高，主要来自把 v1 误报为"通过"的隐性 bug 真正修复。
 - 距离 95 的 8 分 gap **全部是环境/流程性门槛**，不是代码缺陷。
-- 仓库现状适合作为可信本地 Agent 协作的 Developer Preview，可执行 `collab doctor / status / publish` 等命令并跑通 247 项测试。
+- 仓库现状适合作为可信本地 Agent 协作的 Developer Preview，可执行 `agent-dealer doctor / status / publish` 等命令并跑通 247 项测试。
 - 建议下一步由具备外部客户端与 CI 推送权限的维护者补齐 §8.4 / §8.6 的 smoke matrix 与真实 CI 运行。

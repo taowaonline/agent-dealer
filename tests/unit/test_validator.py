@@ -49,7 +49,7 @@ class ChainTests(TaskTestCase):
         coord = os.path.join(self.task_dir, "coordination.md")
         ev = make_event(self.task_id, "PLANNING_STARTED", "A", None, "evt-x")
         with open(coord, "w") as fh:
-            from agent_collaboration import validator
+            from agent_dealer import validator
             fh.write(validator.serialize_event(ev))
         self.assertIn("first-event", self.rules(self.validate()))
 
@@ -346,7 +346,7 @@ class FixtureSuiteTests(unittest.TestCase):
     FIXTURES = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "fixtures")
 
     def _run(self, name):
-        from agent_collaboration.validator import validate_task
+        from agent_dealer.validator import validate_task
         return validate_task(os.path.join(self.FIXTURES, name))
 
     def test_valid_fixture(self):

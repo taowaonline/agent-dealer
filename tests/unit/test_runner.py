@@ -8,10 +8,10 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from helpers import TaskTestCase, append_event, make_artifact, make_event  # noqa: E402
-from agent_collaboration.runner import Runner, RunnerState, load_adapters  # noqa: E402
-from agent_collaboration.adapters.manual import ManualAdapter  # noqa: E402
-from agent_collaboration.adapters.command import CommandAdapter  # noqa: E402
-from agent_collaboration.errors import MMACError  # noqa: E402
+from agent_dealer.runner import Runner, RunnerState, load_adapters  # noqa: E402
+from agent_dealer.adapters.manual import ManualAdapter  # noqa: E402
+from agent_dealer.adapters.command import CommandAdapter  # noqa: E402
+from agent_dealer.errors import MMACError  # noqa: E402
 
 
 class RunnerStateTests(TaskTestCase):

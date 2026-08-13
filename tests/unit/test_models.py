@@ -5,8 +5,8 @@ import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "src"))
 
-from agent_collaboration import models  # noqa: E402
-from agent_collaboration.errors import MMACError  # noqa: E402
+from agent_dealer import models  # noqa: E402
+from agent_dealer.errors import MMACError  # noqa: E402
 
 ZERO_HASH = "0" * 64
 

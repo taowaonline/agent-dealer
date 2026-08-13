@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from helpers import TaskTestCase, append_event, make_artifact, make_event, review_payload  # noqa: E402
-from agent_collaboration.store import TaskStore  # noqa: E402
+from agent_dealer.store import TaskStore  # noqa: E402
 
 
 class CrashRecoveryTests(TaskTestCase):

@@ -12,11 +12,11 @@
 | `python -m unittest discover -s tests/unit` | ✅ 197 项通过 |
 | `python -m unittest discover -s tests/integration` | ✅ 6 项通过（含 100 并发发布、双认领、崩溃恢复、E2E×10） |
 | `coverage run + report --fail-under=90` | ✅ 分支覆盖率 **91%**（≥90% 达标） |
-| `collab doctor examples/quickstart` | ✅ 0 错误（黄金样例 APPROVED，8 事件） |
-| `collab status examples/quickstart --json` | ✅ 机器可读输出 |
-| `collab validate tasks/task-20260810-001` | ✅ exit 0（7 占位 model 经 expected-warnings grandfather、哈希漂移经 supersede 降级，共 15 告警） |
+| `agent-dealer doctor examples/quickstart` | ✅ 0 错误（黄金样例 APPROVED，8 事件） |
+| `agent-dealer status examples/quickstart --json` | ✅ 机器可读输出 |
+| `agent-dealer validate tasks/task-20260810-001` | ✅ exit 0（7 占位 model 经 expected-warnings grandfather、哈希漂移经 supersede 降级，共 15 告警） |
 | `skill-up validate evals/eval.yaml` | ✅ 6 用例配置有效 |
-| 全新 venv `pip install -e .` | ✅ 可安装，`collab` 入口可用 |
+| 全新 venv `pip install -e .` | ✅ 可安装，`agent-dealer` 入口可用 |
 
 ## §8 硬门槛逐条核对
 
@@ -24,7 +24,7 @@
 
 | 门槛 | 状态 | 证据/说明 |
 | --- | --- | --- |
-| `collab init/status/next/claim/publish/watch/doctor` | ✅ | 全部实现并有测试（test_cli.py） |
+| `agent-dealer init/status/next/claim/publish/watch/doctor` | ✅ | 全部实现并有测试（test_cli.py） |
 | 从 clone 到首个 PLAN_READY ≤5 条命令 | ✅ | test_quickstart_path_within_five_commands 实证（init+prepare+publish+artifact+prepare/publish = 5 步内） |
 | watch 依据合法事件通知/启动下一角色 | ✅ | Runner + manual/command adapter，去重持久化，测试覆盖 |
 | 支持 A→B→A、A→B/C→A、返工、阻塞、人工重开 | ✅ | 状态机 + 子任务 + TASK_REOPENED 均有测试与真实任务记录 |

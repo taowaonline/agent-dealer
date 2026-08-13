@@ -6,7 +6,7 @@
 
 ## Review #1 — 本次 5 处修复的逐项审查
 
-### FIX-1：`src/agent_collaboration/store.py:287-299` `stage_artifact` 路径规范化
+### FIX-1：`src/agent_dealer/store.py:287-299` `stage_artifact` 路径规范化
 
 **改动**：把 `dest = os.path.realpath(...)` 与 `task_dir` 的 `commonpath` 比较改为先用 `task_real = os.path.realpath(self.task_dir)` 一致规范化，再做 commonpath。
 
@@ -21,7 +21,7 @@
 
 **协议一致性**：与 SKILL.md §7 "原子获取目录锁 → 重读 → 固化产物 → 追加事件 → 释放锁" 一致；不放宽也不收紧协议。
 
-### FIX-2：`src/agent_collaboration/security.py` SECRET_IGNORES
+### FIX-2：`src/agent_dealer/security.py` SECRET_IGNORES
 
 **改动**：新增 `SECRET_IGNORES = (".git", "__pycache__", ".DS_Store")`；`scan_tree_secrets` 默认使用此集合而非 `DEFAULT_IGNORES`。
 

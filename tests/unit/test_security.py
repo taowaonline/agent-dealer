@@ -6,8 +6,8 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from agent_collaboration import security  # noqa: E402
-from agent_collaboration.errors import MMACError  # noqa: E402
+from agent_dealer import security  # noqa: E402
+from agent_dealer.errors import MMACError  # noqa: E402
 
 
 class Base(unittest.TestCase):

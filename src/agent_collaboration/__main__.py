@@ -1,5 +1,5 @@
-import sys
+"""Compatibility entry point for ``python -m agent_collaboration``."""
 
-from .cli import main
+from agent_dealer.cli import main
 
-sys.exit(main())
+raise SystemExit(main())

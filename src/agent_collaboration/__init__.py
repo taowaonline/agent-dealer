@@ -1,7 +1,5 @@
-"""agent_collaboration：跨模型 Agent 共享目录协作运行时。"""
+"""Deprecated compatibility layer for :mod:`agent_dealer`."""
 
-__version__ = "0.1.0"
+from agent_dealer import MMACError, TaskStore, ValidationReport, __version__, validate_task
 
-from .errors import MMACError  # noqa: F401
-from .store import TaskStore  # noqa: F401
-from .validator import ValidationReport, validate_task  # noqa: F401
+__all__ = ["MMACError", "TaskStore", "ValidationReport", "__version__", "validate_task"]
