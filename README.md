@@ -2,7 +2,7 @@
 
 厂商无关的跨模型 Agent 协作运行时。Claude Code、Codex、Kimi、Cursor 或本地模型不需要共享厂商会话，只通过共享目录里的结构化事件、版本化产物和 SHA-256 哈希即可完成规划、执行、审查与返工。
 
-**当前状态：Developer Preview（v0.2.0）。** 默认威胁模型为可信本地客户端（见 [SECURITY.md](SECURITY.md)）。
+**当前状态：Developer Preview（v0.2.1）。** 默认威胁模型为可信本地客户端（见 [SECURITY.md](SECURITY.md)）。
 
 ## 安装
 
@@ -16,37 +16,37 @@ python -m venv .venv && .venv/bin/pip install -e .
 
 ```bash
 ./scripts/install-global.sh
-agent-dealer --version
+agent_dealer --version
 ```
 
 默认安装到 `~/.local/share/agent_dealer/venv`，并在 `~/.local/bin` 创建
-`agent-dealer`、`agent_dealer` 和兼容命令 `collab`。若 shell 找不到命令，把
+主命令 `agent_dealer`，并保留旧版兼容命令 `collab`。若 shell 找不到命令，把
 `~/.local/bin` 加入 `PATH`。更新代码后重新运行安装脚本即可升级全局命令。
 
 ## 五分钟 Quick Start
 
 ```bash
 # 1. 创建任务（目录、control.md、TASK_CREATED 事件一步到位）
-agent-dealer init task-demo-001 --title "我的第一个协作任务" --model kimi-k2.5
+agent_dealer init task-demo-001 --title "我的第一个协作任务" --model kimi-k2.5
 
 # 2. 诊断任务健康度
-agent-dealer doctor tasks/task-demo-001
+agent_dealer doctor tasks/task-demo-001
 
 # 3. 查看下一步该谁行动
-agent-dealer next tasks/task-demo-001
+agent_dealer next tasks/task-demo-001
 
 # 4. 准备并预校验一个事件（PLANNING_STARTED）
-agent-dealer event prepare tasks/task-demo-001 --type PLANNING_STARTED --role A --model gpt-5.6-luna --out tasks/task-demo-001/tmp/e.json
-agent-dealer publish --dry-run tasks/task-demo-001 tasks/task-demo-001/tmp/e.json
+agent_dealer event prepare tasks/task-demo-001 --type PLANNING_STARTED --role A --model gpt-5.6-luna --out tasks/task-demo-001/tmp/e.json
+agent_dealer publish --dry-run tasks/task-demo-001 tasks/task-demo-001/tmp/e.json
 
 # 5. 原子发布（锁 + 预校验 + 追加 + 复核，一次完成）
-agent-dealer publish tasks/task-demo-001 tasks/task-demo-001/tmp/e.json --instance-id my-session
+agent_dealer publish tasks/task-demo-001 tasks/task-demo-001/tmp/e.json --instance-id my-session
 ```
 
 一个从 `TASK_CREATED` 到 `REVIEW_APPROVED` 全部校验通过的完整样例在 [`examples/quickstart`](examples/quickstart)：
 
 ```bash
-agent-dealer doctor examples/quickstart
+agent_dealer doctor examples/quickstart
 ```
 
 ## 角色与流程
@@ -77,7 +77,7 @@ CREATED → PLANNING → PLAN_READY → CLAIMED → EXECUTING → WORK_READY →
 
 ```bash
 # adapters.json: {"B": {"type": "manual"}}
-agent-dealer watch tasks/task-demo-001 --adapters adapters.json
+agent_dealer watch tasks/task-demo-001 --adapters adapters.json
 ```
 
 Runner 只负责唤醒与监控，不替 Agent 伪造审查。详见 [docs/protocol.md](docs/protocol.md#runner)。
@@ -94,13 +94,13 @@ Runner 只负责唤醒与监控，不替 Agent 伪造审查。详见 [docs/proto
 ## 测试
 
 ```bash
-python -m unittest discover -s tests        # 205 项核心测试
+python -m unittest discover -s tests        # 206 项核心测试
 python -m unittest tools.csv2json.tests.test_csv2json  # 22 项示例测试
 python -m unittest tasks.task-20260810-002.fixtures.test_validate_fixtures  # 22 项兼容测试
 skill-up validate evals/eval.yaml           # Agent 行为评测配置
 ```
 
-当前共 249 项确定性测试通过；核心包覆盖率 91%。
+当前共 250 项确定性测试通过；核心包覆盖率 91%。
 
 ## 目录结构
 

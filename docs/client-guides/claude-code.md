@@ -7,7 +7,7 @@
 ```text
 读取 <共享目录>/SKILL.md 和任务 <task-id> 的 control.md、coordination.md。
 你当前担任角色 <A|B|C>，实例 ID 为 <instance-id>。
-先运行 agent-dealer validate tasks/<task-id>（或 python -m agent_dealer validate）验证协议状态，
+先运行 agent_dealer validate tasks/<task-id>（或 python -m agent_dealer validate）验证协议状态，
 只处理发送给该角色且尚未处理的最新事件。
 完成一次合法状态转换后写入产物和事件，然后退出。
 ```
@@ -15,7 +15,7 @@
 ## 建议参数
 
 - 无人值守接力：`claude --permission-mode acceptEdits`（仍有高危操作拦截）。
-- 发布事件一律使用 `agent-dealer publish`，不要手工编辑 coordination.md。
+- 发布事件一律使用 `agent_dealer publish`，不要手工编辑 coordination.md。
 
 ## 恢复
 

@@ -41,10 +41,10 @@ def _reg(code: str, reason: str, hint: str) -> ErrorSpec:
 E101_INVALID_STATE = _reg(
     "MMAC-E101_INVALID_STATE", "非法状态流转",
     "对照 SKILL.md/references/state-machine.md 的状态机，检查事件 type/status；"
-    "用 `agent-dealer status <task>` 查看当前状态")
+    "用 `agent_dealer status <task>` 查看当前状态")
 E102_INVALID_EVENT = _reg(
     "MMAC-E102_INVALID_EVENT", "事件结构非法",
-    "运行 `agent-dealer doctor <task>` 定位字段问题；参照 references/event-schema.md")
+    "运行 `agent_dealer doctor <task>` 定位字段问题；参照 references/event-schema.md")
 E103_SCHEMA_VERSION = _reg(
     "MMAC-E103_SCHEMA_VERSION", "schema 版本不兼容",
     "确认 protocol_version/schema 版本受支持；必要时先运行迁移工具")
@@ -53,7 +53,7 @@ E104_BROKEN_CHAIN = _reg(
     "previous_event_id 必须等于当前最新事件；分叉时停止自动推进并由协调器裁定")
 E105_INVALID_CONTROL = _reg(
     "MMAC-E105_INVALID_CONTROL", "control.md 配置非法",
-    "运行 `agent-dealer doctor <task>`；对照 references/control-schema.md 修复")
+    "运行 `agent_dealer doctor <task>`；对照 references/control-schema.md 修复")
 
 E201_UNAUTHORIZED_ROLE = _reg(
     "MMAC-E201_UNAUTHORIZED_ROLE", "角色无权发布该事件",
@@ -70,7 +70,7 @@ E301_HASH_MISMATCH = _reg(
     "重新计算哈希：`shasum -a 256 <file>`；若产物被后续事件 supersede，确认版本号递增")
 E302_ARTIFACT_MISSING = _reg(
     "MMAC-E302_ARTIFACT_MISSING", "产物文件缺失",
-    "确认路径相对任务目录（任务目录外用绝对路径）；用 `agent-dealer artifact add` 固化产物")
+    "确认路径相对任务目录（任务目录外用绝对路径）；用 `agent_dealer artifact add` 固化产物")
 E303_TAMPERED_LOG = _reg(
     "MMAC-E303_TAMPERED_LOG", "事件日志被篡改或损坏",
     "coordination.md 只追加；恢复备份或由协调器发布 EVENT_REJECTED")
@@ -94,7 +94,7 @@ E502_UNSAFE_PROFILE = _reg(
 
 E601_RUNNER = _reg(
     "MMAC-E601_RUNNER", "Runner/adapter 错误",
-    "检查 adapters 配置与客户端可用性：`agent-dealer doctor <task>`")
+    "检查 adapters 配置与客户端可用性：`agent_dealer doctor <task>`")
 E602_CLIENT_UNAVAILABLE = _reg(
     "MMAC-E602_CLIENT_UNAVAILABLE", "客户端不可用",
     "确认对应 CLI 已安装并在 PATH 中，或改用 manual adapter")

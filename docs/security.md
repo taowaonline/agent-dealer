@@ -15,7 +15,7 @@
 2. **产物层**：SHA-256、版本化、`..` 穿越与 symlink 逃逸拦截、allowed/forbidden paths。
 3. **变更层**：基线快照（`security.snapshot_baseline`）+ 变更审计——发现"实际改了
    但没申报"的文件，不只信事件里的 artifacts 列表。
-4. **凭据层**：`agent-dealer doctor` 内置密钥扫描（AWS key、私钥、token 等模式）；
+4. **凭据层**：`agent_dealer doctor` 内置密钥扫描（AWS key、私钥、token 等模式）；
    `security.redact` 用于日志脱敏。
 5. **副作用层**：网络、外部消息、购买、发布、破坏性操作必须命中
    `require_human_approval_for` 人工审批清单；不可逆操作不得自动重试。

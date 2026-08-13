@@ -1,4 +1,4 @@
-"""agent-dealer CLI（P1-02 / P1-03 / P1-04）。
+"""agent_dealer CLI（P1-02 / P1-03 / P1-04）。
 
 子命令：
   init      创建任务目录、control.md、目录结构并发布 TASK_CREATED
@@ -159,7 +159,7 @@ def cmd_init(args: argparse.Namespace) -> int:
     store = TaskStore(task_dir)
     store.publish(event, owner=args.instance_id)
     print("✓ 已创建 %s（TASK_CREATED 已发布并通过校验）" % task_dir)
-    print("  下一步: agent-dealer next %s" % task_dir)
+    print("  下一步: agent_dealer next %s" % task_dir)
     return 0
 
 
@@ -345,7 +345,7 @@ def cmd_event_prepare(args: argparse.Namespace) -> int:
     with open(out_path, "w", encoding="utf-8") as fh:
         json.dump(event, fh, ensure_ascii=False, indent=2)
     print("✓ 候选事件模板已写入 %s" % out_path)
-    print("  预校验: agent-dealer publish --dry-run %s %s" % (args.task_dir, out_path))
+    print("  预校验: agent_dealer publish --dry-run %s %s" % (args.task_dir, out_path))
     return 0
 
 
@@ -403,7 +403,7 @@ def cmd_watch(args: argparse.Namespace) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
-        prog="agent-dealer",
+        prog="agent_dealer",
         description="跨模型 Agent 共享目录协作运行时（MMAC）")
     p.add_argument("--version", action="store_true", help="打印版本")
     sub = p.add_subparsers(dest="command")
@@ -412,7 +412,7 @@ def build_parser() -> argparse.ArgumentParser:
         sp.add_argument("--role", default=role_default)
         sp.add_argument("--instance-id", default=os.environ.get("MMAC_INSTANCE_ID", "cli-session"))
         sp.add_argument("--provider", default=os.environ.get("MMAC_PROVIDER", "local"))
-        sp.add_argument("--client", default=os.environ.get("MMAC_CLIENT", "agent-dealer-cli"))
+        sp.add_argument("--client", default=os.environ.get("MMAC_CLIENT", "agent_dealer-cli"))
         sp.add_argument("--model", default=os.environ.get("MMAC_MODEL", "unknown-model"))
 
     sp = sub.add_parser("init", help="创建任务并发布 TASK_CREATED")

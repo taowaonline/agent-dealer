@@ -3,6 +3,7 @@
 import subprocess
 import sys
 import unittest
+from unittest import mock
 
 import agent_collaboration
 import agent_dealer
@@ -26,6 +27,12 @@ class RenameCompatibilityTests(unittest.TestCase):
             )
             versions.append(result.stdout.strip())
         self.assertEqual(versions, [agent_dealer.__version__, agent_dealer.__version__])
+
+    def test_cli_identifies_primary_command_as_agent_dealer(self):
+        from agent_dealer.cli import build_parser
+
+        with mock.patch.object(sys, "argv", ["agent_dealer", "--help"]):
+            self.assertEqual(build_parser().prog, "agent_dealer")
 
 
 if __name__ == "__main__":
