@@ -30,10 +30,10 @@ jobs:
         run: python -m unittest discover -s tests/integration
       - name: Golden example doctor
         run: collab doctor examples/quickstart
-      - name: Real tasks doctor (grandfathered)
-        run: |
-          collab doctor tasks/task-20260810-001
-          collab doctor tasks/task-20260810-002
+      - name: Portable legacy task doctor (grandfathered)
+        # task-002 是本机自举审计日志，历史事件含创建机器的绝对路径；
+        # 它由兼容测试覆盖，但不作为跨机器发布门禁。
+        run: collab doctor tasks/task-20260810-001
       - name: Legacy expected-failure samples still fail
         run: |
           set -e
