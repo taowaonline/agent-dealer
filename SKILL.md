@@ -1,5 +1,5 @@
 ---
-name: agent-dealer
+name: agent_dealer
 description: Coordinate heterogeneous AI agents and clients such as Claude Code, Codex, Kimi, Gemini, or local models through a vendor-neutral shared-directory protocol. Use when multiple agents with different roles, capabilities, model providers, prices, or sessions must plan, execute, review, revise, exchange artifacts, or resume work asynchronously across separate clients.
 ---
 
