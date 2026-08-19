@@ -22,7 +22,7 @@ import sys
 from typing import Any, Dict, List, Optional
 
 from . import validator
-from .errors import MMACError
+from .errors import E202_PLACEHOLDER_MODEL, MMACError
 from .models import SCHEMA_VERSION
 from .security import scan_tree_secrets
 from .store import TaskStore, new_event_id, now_iso
@@ -114,6 +114,7 @@ def _out(data: Any, as_json: bool) -> None:
 
 
 def cmd_init(args: argparse.Namespace) -> int:
+    actor = _actor_from_args(args, "coordinator")  # 先校验 model，再落盘
     tasks_root = args.tasks_dir
     task_dir = os.path.join(tasks_root, args.task_id)
     if os.path.exists(task_dir):
@@ -141,13 +142,7 @@ def cmd_init(args: argparse.Namespace) -> int:
         "parent_task_id": None,
         "type": "TASK_CREATED",
         "status": "CREATED",
-        "actor": {
-            "role": "coordinator",
-            "instance_id": args.instance_id,
-            "provider": args.provider,
-            "client": args.client,
-            "model": args.model,
-        },
+        "actor": actor,
         "recipient": {"role": args.planner},
         "caused_by": None,
         "revision_cycle": 0,
@@ -269,12 +264,17 @@ def cmd_next(args: argparse.Namespace) -> int:
 
 
 def _actor_from_args(args: argparse.Namespace, role: str) -> Dict[str, str]:
+    model = args.model
+    if not model or validator.is_placeholder_model(model):
+        raise MMACError(
+            E202_PLACEHOLDER_MODEL,
+            "必须通过 --model 或环境变量 MMAC_MODEL 提供真实模型标识（当前: %r）" % model)
     return {
         "role": role,
         "instance_id": args.instance_id,
         "provider": args.provider,
         "client": args.client,
-        "model": args.model,
+        "model": model,
     }
 
 
@@ -354,6 +354,11 @@ def cmd_publish(args: argparse.Namespace) -> int:
     with open(args.event_json, encoding="utf-8") as fh:
         event = json.load(fh)
     if args.dry_run:
+        # 与真实 publish 的 auto_previous 行为一致：按当前链尾回填 previous_event_id
+        if not args.strict_previous and isinstance(event, dict):
+            last = store.last_event()
+            event = dict(event)
+            event["previous_event_id"] = last["event_id"] if last else None
         report = store.validate(candidate=event)
         print(validator.format_report(report, candidate=True))
         return 0 if report.ok else 1
@@ -413,7 +418,7 @@ def build_parser() -> argparse.ArgumentParser:
         sp.add_argument("--instance-id", default=os.environ.get("MMAC_INSTANCE_ID", "cli-session"))
         sp.add_argument("--provider", default=os.environ.get("MMAC_PROVIDER", "local"))
         sp.add_argument("--client", default=os.environ.get("MMAC_CLIENT", "agent_dealer-cli"))
-        sp.add_argument("--model", default=os.environ.get("MMAC_MODEL", "unknown-model"))
+        sp.add_argument("--model", default=os.environ.get("MMAC_MODEL"))
 
     sp = sub.add_parser("init", help="创建任务并发布 TASK_CREATED")
     sp.add_argument("task_id")

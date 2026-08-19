@@ -65,7 +65,7 @@ TRANSITIONS: Dict[str, set] = {
 }
 
 TERMINAL = {"APPROVED", "BLOCKED", "FAILED", "CANCELLED"}
-PLACEHOLDER_MODEL_TOKENS = ("configured", "placeholder", "todo", "tbd", "xxx")
+PLACEHOLDER_MODEL_TOKENS = ("configured", "placeholder", "todo", "tbd", "xxx", "unknown")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 ISO_RE = re.compile(
     r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$"
@@ -755,12 +755,14 @@ def validate_artifacts(events: List[Dict[str, Any]], task_dir: str,
                              eid if isinstance(eid, str) else None)
                 continue
             try:
+                h = hashlib.sha256()
                 with open(full, "rb") as fh:
-                    data = fh.read()
+                    for chunk in iter(lambda: fh.read(65536), b""):
+                        h.update(chunk)
             except OSError as ex:
                 report.error("artifact-unreadable", "产物读取失败：%s（事件 %s）：%s" % (p, _short(eid), ex))
                 continue
-            actual = hashlib.sha256(data).hexdigest()
+            actual = h.hexdigest()
             expected = a.get("sha256")
             if actual == expected:
                 continue

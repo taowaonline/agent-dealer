@@ -75,9 +75,15 @@ class Runner:
         self.max_idle_cycles = max_idle_cycles  # 测试用：None = 永久
         self.state = RunnerState(os.path.join(self.store.task_dir, STATE_FILENAME))
 
-    def pending_action(self) -> Optional[Dict[str, Any]]:
-        """返回需要调度的最新可行动事件（未处理、非终态、校验通过）。"""
-        report = self.store.validate()
+    def pending_action(self, report: Optional[validator.ValidationReport] = None
+                       ) -> Optional[Dict[str, Any]]:
+        """返回需要调度的最新可行动事件（未处理、非终态、校验通过）。
+
+        report 允许复用本周期已生成的校验结果，避免每个轮询周期重复
+        全量校验（每次校验都会重读并重哈希全部产物）。
+        """
+        if report is None:
+            report = self.store.validate()
         if not report.ok:
             return None  # 链损坏：停止自动推进，等待人工
         if report.final_status in validator.TERMINAL:
@@ -117,8 +123,9 @@ class Runner:
                self.store.task_dir, event.get("event_id"), event.get("type"))
         )
 
-    def run_once(self) -> Optional[AdapterResult]:
-        event = self.pending_action()
+    def run_once(self, report: Optional[validator.ValidationReport] = None
+                 ) -> Optional[AdapterResult]:
+        event = self.pending_action(report)
         if event is None:
             return None
         return self.dispatch(event)
@@ -131,7 +138,7 @@ class Runner:
                 if on_event:
                     on_event("terminal", {"status": report.final_status})
                 return
-            result = self.run_once()
+            result = self.run_once(report)
             if result is not None:
                 idle = 0
                 if on_event:

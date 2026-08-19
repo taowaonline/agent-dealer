@@ -33,18 +33,23 @@ class CommandAdapter(Adapter):
         run_id = "cmd-%s" % uuid.uuid4()
         env = dict(os.environ)
         env.update({"MMAC_PROMPT": prompt, "MMAC_TASK_DIR": task_dir, "MMAC_ROLE": role})
+        # 子进程输出落盘到任务 tmp/，便于诊断失败；父进程句柄在 Popen 返回后即可关闭
+        log_dir = os.path.join(task_dir, "tmp")
+        log_path = os.path.join(log_dir, "adapter-%s.log" % run_id)
         try:
-            proc = subprocess.Popen(
-                self.build_command(task_dir, role, prompt),
-                cwd=task_dir, env=env,
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-            )
+            os.makedirs(log_dir, exist_ok=True)
+            with open(log_path, "ab") as log_fh:
+                proc = subprocess.Popen(
+                    self.build_command(task_dir, role, prompt),
+                    cwd=task_dir, env=env,
+                    stdout=log_fh, stderr=log_fh,
+                )
         except OSError as ex:
             return AdapterResult(run_id, "failed", str(ex), exit_code=-1)
         self.processes[run_id] = proc
         import time
         self._started[run_id] = time.time()
-        return AdapterResult(run_id, "started", "pid=%d" % proc.pid)
+        return AdapterResult(run_id, "started", "pid=%d log=%s" % (proc.pid, log_path))
 
     def poll(self, run_id: str) -> str:
         proc = self.processes.get(run_id)

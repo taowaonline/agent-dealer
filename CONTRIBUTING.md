@@ -2,7 +2,7 @@
 
 ## 环境
 
-- Python 3.8+，运行时零第三方依赖。
+- Python 3.9+，运行时零第三方依赖。
 - 开发依赖：`python -m venv .venv && .venv/bin/pip install -e ".[dev]"`。
 
 ## 测试

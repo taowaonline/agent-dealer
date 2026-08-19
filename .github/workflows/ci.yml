@@ -5,8 +5,16 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -46,7 +54,7 @@ jobs:
       - name: Secret scan (src only)
         # 仅扫描运行时代码；tests/ 与 fixtures/ 含故意写入的示例密钥用于回归校验。
         run: |
-          python -c "from agent_collaboration.security import scan_tree_secrets; import sys; f=scan_tree_secrets('src'); print(f); sys.exit(1 if f else 0)"
+          python -c "from agent_dealer.security import scan_tree_secrets; import sys; f=scan_tree_secrets('src'); print(f); sys.exit(1 if f else 0)"
       - name: Coverage
         run: |
           coverage run -m unittest discover -s tests

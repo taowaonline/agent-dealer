@@ -4,6 +4,7 @@ import os
 import sys
 import tempfile
 import unittest
+import unittest.mock
 from contextlib import redirect_stdout
 from io import StringIO
 
@@ -48,6 +49,17 @@ class InitTests(CliTestBase):
         self.init_task()
         code, out = self.run_cli("init", "task-cli-001", "--title", "x", "--model", "m")
         self.assertEqual(code, 1)
+
+    def test_init_requires_real_model(self):
+        env = {k: v for k, v in os.environ.items() if k != "MMAC_MODEL"}
+        with unittest.mock.patch.dict(os.environ, env, clear=True):
+            code, out = self.run_cli("init", "task-model-001", "--title", "x")
+        self.assertEqual(code, 1)
+        self.assertIn("MMAC-E202_PLACEHOLDER_MODEL", out)
+        code, out = self.run_cli("init", "task-model-002", "--title", "x",
+                                 "--model", "unknown-model")
+        self.assertEqual(code, 1)
+        self.assertIn("MMAC-E202_PLACEHOLDER_MODEL", out)
 
     def test_quickstart_path_within_five_commands(self):
         # 文档 §8.1：从 init 到 PLAN_READY 不超过 5 条命令

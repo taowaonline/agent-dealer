@@ -45,6 +45,15 @@ def new_event_id() -> str:
     return str(uuid.uuid4())
 
 
+def _parse_aware_datetime(value: Any) -> Optional[datetime]:
+    """解析 ISO 时间戳；无效或无时区（naive）返回 None，避免比较/运算时抛 TypeError。"""
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo is not None else None
+
+
 def sha256_file(path: str) -> str:
     import hashlib
     h = hashlib.sha256()
@@ -177,10 +186,9 @@ class TaskStore:
         lease = info.get("lease_until")
         if not isinstance(lease, str):
             return True  # 损坏的 owner.json：判过期可回收，避免永久占用
-        try:
-            until = datetime.fromisoformat(lease.replace("Z", "+00:00"))
-        except ValueError:
-            return True
+        until = _parse_aware_datetime(lease)
+        if until is None:
+            return True  # 无法解析或缺少时区：视为损坏，判过期可回收
         return datetime.now(timezone.utc).astimezone() > until
 
     def _reclaim_stale_lock(self, reason: str) -> None:
@@ -197,23 +205,36 @@ class TaskStore:
 
     def release_lock(self, handle: Optional[LockHandle], force: bool = False,
                      reason: str = "") -> None:
+        # 先原子 rename 再校验/删除：避免"读 owner → 删目录"窗口内锁被他人
+        # reclaim 重取后遭误删。rename 失败说明锁已不在，视为已释放。
         if not os.path.isdir(self.lock_path):
             return
+        tomb = "%s.release-%s" % (self.lock_path, uuid.uuid4().hex[:8])
+        try:
+            os.rename(self.lock_path, tomb)
+        except OSError:
+            return
         if not force and handle is not None:
-            info = self.lock_info()
+            info = None
+            try:
+                with open(os.path.join(tomb, "owner.json"), encoding="utf-8") as fh:
+                    info = json.load(fh)
+            except (OSError, json.JSONDecodeError):
+                info = None
             if info and info.get("owner") != handle.owner:
+                try:
+                    os.rename(tomb, self.lock_path)
+                except OSError:
+                    # 放回失败：已有新持有者，留下 tomb 目录供人工核查
+                    marker = os.path.join(self.task_dir, "locks", "recovery.log")
+                    with open(marker, "a", encoding="utf-8") as fh:
+                        fh.write("%s 释放校验失败，锁目录暂存于 %s\n" % (now_iso(), tomb))
                 raise MMACError(E401_LOCK_CONFLICT, "不得释放他人持有的锁")
         if force and reason:
             marker = os.path.join(self.task_dir, "locks", "recovery.log")
             with open(marker, "a", encoding="utf-8") as fh:
                 fh.write("%s %s\n" % (now_iso(), reason))
-        for name in os.listdir(self.lock_path):
-            entry = os.path.join(self.lock_path, name)
-            if os.path.isdir(entry):
-                shutil.rmtree(entry, ignore_errors=True)
-            else:
-                os.unlink(entry)
-        os.rmdir(self.lock_path)
+        shutil.rmtree(tomb, ignore_errors=True)
 
     # ------------------------------------------------------------ 租约（任务认领）
 
@@ -256,16 +277,14 @@ class TaskStore:
         now = datetime.now(timezone.utc).astimezone()
         lease["last_heartbeat"] = now.isoformat(timespec="seconds")
         # 心跳同时续租：活跃执行者不会因租约到期被误判失联。
-        # 租约时长沿用原 lease_until - created_at，解析失败回退默认 900s。
+        # 租约时长沿用原 lease_until - created_at，解析失败（含 naive 时间戳）回退默认 900s。
         lease_seconds = 900
-        try:
-            created = datetime.fromisoformat(str(lease.get("created_at")).replace("Z", "+00:00"))
-            until = datetime.fromisoformat(str(lease.get("lease_until")).replace("Z", "+00:00"))
+        created = _parse_aware_datetime(lease.get("created_at"))
+        until = _parse_aware_datetime(lease.get("lease_until"))
+        if created is not None and until is not None:
             span = (until - created).total_seconds()
             if span > 0:
                 lease_seconds = span
-        except ValueError:
-            pass
         lease["lease_until"] = (now + timedelta(seconds=lease_seconds)).isoformat(timespec="seconds")
         self._write_lease_atomic(role, lease)
         return lease
@@ -274,11 +293,10 @@ class TaskStore:
         lease = self.read_lease(role)
         if not lease:
             return True
-        try:
-            until = datetime.fromisoformat(str(lease.get("lease_until")).replace("Z", "+00:00"))
-            hb = datetime.fromisoformat(str(lease.get("last_heartbeat")).replace("Z", "+00:00"))
-        except ValueError:
-            return True
+        until = _parse_aware_datetime(lease.get("lease_until"))
+        hb = _parse_aware_datetime(lease.get("last_heartbeat"))
+        if until is None or hb is None:
+            return True  # 损坏的租约文件：判失联，允许接管
         now = datetime.now(timezone.utc).astimezone()
         return now > until or (now - hb) > timedelta(seconds=1200)
 
@@ -315,6 +333,11 @@ class TaskStore:
         removed: List[str] = []
         if not os.path.isdir(self.tmp_dir):
             return removed
+        # 活跃持锁者可能在写 .stage 暂存；此时跳过清理，避免破坏进行中的 publish。
+        if os.path.isdir(self.lock_path):
+            info = self.lock_info()
+            if info is not None and not self._lock_expired(info):
+                return removed
         for name in os.listdir(self.tmp_dir):
             if name.endswith(".stage"):
                 os.unlink(os.path.join(self.tmp_dir, name))

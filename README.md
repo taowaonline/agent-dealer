@@ -10,7 +10,7 @@
 python -m venv .venv && .venv/bin/pip install -e .
 ```
 
-运行时零第三方依赖，Python ≥ 3.8。
+运行时零第三方依赖，Python ≥ 3.9。
 
 要在任意目录、其他终端和新 session 中直接使用，执行一次：
 

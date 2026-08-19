@@ -1,7 +1,7 @@
 """协议数据模型（P1-01）：严格字段、schema 版本、round-trip 序列化。
 
 所有 from_dict 拒绝未知关键字段；to_dict/from_dict 可 round-trip。
-仅使用 Python 3.8+ 标准库。
+仅使用 Python 3.9+ 标准库。
 """
 from __future__ import annotations
 

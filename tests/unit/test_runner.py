@@ -3,6 +3,7 @@ import io
 import json
 import os
 import sys
+import tempfile
 import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -48,24 +49,28 @@ class CommandAdapterTests(unittest.TestCase):
         self.assertEqual(cmd, ["run", "B", "/tasks/t1"])
 
     def test_start_and_poll_success(self):
-        a = CommandAdapter(["true"])
-        r = a.start("/", "B", "p", {"event_id": "e"})
-        self.assertEqual(r.state, "started")
-        import time
-        time.sleep(0.1)
-        self.assertEqual(a.poll(r.run_id), "completed")
+        with tempfile.TemporaryDirectory() as task_dir:
+            a = CommandAdapter(["true"])
+            r = a.start(task_dir, "B", "p", {"event_id": "e"})
+            self.assertEqual(r.state, "started")
+            self.assertIn("log=", r.detail)
+            import time
+            time.sleep(0.1)
+            self.assertEqual(a.poll(r.run_id), "completed")
 
     def test_start_and_poll_failure(self):
-        a = CommandAdapter(["false"])
-        r = a.start("/", "B", "p", {"event_id": "e"})
-        import time
-        time.sleep(0.1)
-        self.assertEqual(a.poll(r.run_id), "failed")
+        with tempfile.TemporaryDirectory() as task_dir:
+            a = CommandAdapter(["false"])
+            r = a.start(task_dir, "B", "p", {"event_id": "e"})
+            import time
+            time.sleep(0.1)
+            self.assertEqual(a.poll(r.run_id), "failed")
 
     def test_start_nonexistent_command(self):
-        a = CommandAdapter(["definitely-not-a-command-xyz"])
-        r = a.start("/", "B", "p", {"event_id": "e"})
-        self.assertEqual(r.state, "failed")
+        with tempfile.TemporaryDirectory() as task_dir:
+            a = CommandAdapter(["definitely-not-a-command-xyz"])
+            r = a.start(task_dir, "B", "p", {"event_id": "e"})
+            self.assertEqual(r.state, "failed")
 
 
 class LoadAdaptersTests(TaskTestCase):
