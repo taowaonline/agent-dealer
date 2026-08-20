@@ -10,6 +10,9 @@
   "bin": {
     "agent-dealer-cli": "bin/agent-dealer.js"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "files": [
     "bin/",
     "src/",
