@@ -42,8 +42,8 @@ tasks/<task-id>/
 └── tmp/                # 未发布暂存
 ```
 
-用 `agent_dealer init <task-id> --title "..."` 一步创建（含 control.md 与 TASK_CREATED）。
-不要手工拼接 coordination.md；不要把多个无关任务写入同一日志。
+用 `agent_dealer init <task-id> --title "..."` 一步创建（含 control.md 与 TASK_CREATED）；
+加 `--solo` 进入单会话模式（见 §9）。不要手工拼接 coordination.md；不要把多个无关任务写入同一日志。
 
 ## 4. 事件与状态机
 
@@ -107,6 +107,11 @@ agent_dealer status|next|doctor tasks/<task-id>                # 状态/路由/�
 批准条件：`score >= target_score` 且 `blocking_issues == 0` 且测试与证据标志为真。
 审查记录须逐条列出 legacy 告警及其 grandfather/supersede 依据。
 
+solo 模式补偿门槛：发布者与执行者同源时，独立判断缺席，必须用机械证据替代——
+`REVIEW_APPROVED` 附 `payload.self_review: true` 与 `payload.reproduced_commands`
+（评审阶段**重新执行**的命令清单，不接受执行时缓存的结论；validator 强制，缺一即
+`solo-review` 错误）。此类批准为临时性，任何后续独立审查可覆盖。
+
 ## 7. 幂等、认领与恢复
 
 1. 每次启动/恢复：读 SKILL.md、control.md，运行 `agent_dealer validate`，找出发送给自己且未处理的最新事件；
@@ -127,6 +132,12 @@ agent_dealer status|next|doctor tasks/<task-id>                # 状态/路由/�
 - **手动接力**：用户依次启动客户端，使用统一启动提示（见 `docs/client-guides/`）。
 - **Runner**：`agent_dealer watch tasks/<task-id> --adapters adapters.json` 按事件自动唤醒下一角色
   （manual/command adapter；只唤醒不伪造审查；event_id 去重，重启不重复调度）。
+- **单会话（solo）**：`agent_dealer init <task-id> --solo` —— 一个客户端/模型扮演
+  planner/executor/reviewer 全部职责（control.md `workflow.mode: solo`，四角色收敛为一个）。
+  适用：只有一个可用模型、或用户想在一个 session 内走完规划→实施→审查。代价：独立判断
+  缺席，故角色门槛放宽的同时**证据门槛提高**——`REVIEW_APPROVED` 必须带 `self_review: true`
+  + `reproduced_commands`（§6），批准为临时性，可被后续独立审查覆盖。solo 不是 multi 模式的
+  降级替代：高风险任务（生产变更、付款、安全敏感）应回到 multi 模式取得第二模型复核。
 - 轮询间隔与租约时长见 control.md；文件监听可能丢失，必须保留定时全量校验。
 
 ## 10. 冲突、异常与安全
@@ -145,3 +156,5 @@ agent_dealer status|next|doctor tasks/<task-id>                # 状态/路由/�
 只有存在合法 `REVIEW_APPROVED` 事件、其引用的审查产物满足 control.md 质量门槛、
 且 `agent_dealer validate` 通过时，任务才算完成。自然语言完结语、客户端显示"完成"、
 执行者自评通过、进程退出或文件存在，都不能单独构成完成证明。
+solo 模式下的 APPROVED 是**临时完成**：机械证据齐备但未经独立第二模型复核，
+`status` 会标注其性质；正式完成以独立审查为准。

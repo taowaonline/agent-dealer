@@ -6,6 +6,7 @@ control.md 为 fenced YAML（安全子集解析：嵌套 map、字符串数组�
 protocol:        # name + version
 task:            # id / title / created_at / owner
 workflow:        # planning_agent / default_executor / multimodal_executor / reviewer
+                 # mode: multi（默认）| solo（单会话扮演全部角色）
                  # allow_parallel_execution / poll_interval_seconds
                  # claim_lease_seconds / stale_agent_timeout_seconds
 agents:          # 角色 → {provider, client, model, capabilities, cost_weight}
@@ -21,6 +22,10 @@ budget:          # max_cost_weight / prefer_lowest_cost_capable_agent
 ## 校验器强制项
 
 - `workflow` 四个角色字段齐全且为字符串。
+- `workflow.mode`（缺省 `multi`）：`solo` 时角色授权放宽为「任一工作流角色
+  可发布任意阶段事件」，但 `REVIEW_APPROVED` 必须带 `payload.self_review: true`
+  与非空 `payload.reproduced_commands`（评审阶段独立重跑的命令清单）——
+  用机械证据替代第二模型的独立判断；批准为临时性，可被后续独立审查覆盖。
 - `quality_gate.target_score / max_score / max_revision_cycles` 为非负整数，
   target ≤ max。
 - `permissions.allowed_paths / forbidden_paths` 为字符串数组。

@@ -35,6 +35,11 @@ CREATED
   只有 `REVIEW_STARTED` 才进入 REVIEWING（语义：全部子任务收齐）。
 - 状态保持事件（HEARTBEAT 等）不改变状态。
 - 达到最大返工次数仍未通过必须进入 BLOCKED，不得降低分数线。
+- solo 模式（`workflow.mode: solo`）下 APPROVED 为**临时批准**：发布者与
+  执行者同源，`REVIEW_APPROVED` 必须带 `self_review: true` +
+  `reproduced_commands`（校验器强制）。后续任何独立审查（multi 模式任务或
+  第二模型复核）可发布新的 `REVIEW_APPROVED` / `REVISION_REQUIRED` 覆盖它
+  （需先 TASK_REOPENED）。
 
 ## 返工轮次
 

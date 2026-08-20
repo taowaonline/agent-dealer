@@ -39,6 +39,7 @@ task:
   owner: human
 
 workflow:
+  mode: {mode}
   planning_agent: {planner}
   default_executor: {executor}
   multimodal_executor: {multimodal}
@@ -49,24 +50,7 @@ workflow:
   stale_agent_timeout_seconds: 1200
 
 agents:
-  {planner}:
-    provider: configurable
-    client: configurable
-    model: configurable
-    capabilities: [architecture, planning, review, reasoning]
-    cost_weight: 5
-  {executor}:
-    provider: configurable
-    client: configurable
-    model: configurable
-    capabilities: [coding, testing, documentation, file-processing]
-    cost_weight: 1
-  {multimodal}:
-    provider: configurable
-    client: configurable
-    model: configurable
-    capabilities: [vision, image-analysis, multimodal]
-    cost_weight: 3
+{agents_block}
 
 quality_gate:
   enabled: true
@@ -113,6 +97,34 @@ def _out(data: Any, as_json: bool) -> None:
         print(json.dumps(data, ensure_ascii=False, indent=2))
 
 
+SOLO_AGENT_TEMPLATE = """  {role}:
+    provider: configurable
+    client: configurable
+    model: configurable
+    capabilities: [architecture, planning, review, coding, testing, documentation, vision, image-analysis]
+    cost_weight: 1
+    note: solo 模式——本角色由单一会话扮演 A/B/C 全部职责；REVIEW_APPROVED 需 self_review + reproduced_commands（validator 强制），批准为临时性，可被后续独立审查覆盖"""
+
+MULTI_AGENTS_TEMPLATE = """  {planner}:
+    provider: configurable
+    client: configurable
+    model: configurable
+    capabilities: [architecture, planning, review, reasoning]
+    cost_weight: 5
+  {executor}:
+    provider: configurable
+    client: configurable
+    model: configurable
+    capabilities: [coding, testing, documentation, file-processing]
+    cost_weight: 1
+  {multimodal}:
+    provider: configurable
+    client: configurable
+    model: configurable
+    capabilities: [vision, image-analysis, multimodal]
+    cost_weight: 3"""
+
+
 def cmd_init(args: argparse.Namespace) -> int:
     actor = _actor_from_args(args, "coordinator")  # 先校验 model，再落盘
     tasks_root = args.tasks_dir
@@ -124,10 +136,25 @@ def cmd_init(args: argparse.Namespace) -> int:
                 "artifacts/media", "locks", "tmp"):
         os.makedirs(os.path.join(task_dir, sub), exist_ok=True)
 
+    if args.solo:
+        # 单会话模式：一个角色扮演 planner/executor/multimodal/reviewer。
+        # 角色门槛放宽，但 REVIEW_APPROVED 必须自证（validator solo-review 规则）。
+        solo_role = args.executor or "B"
+        planner = executor = multimodal = reviewer = solo_role
+        agents_block = SOLO_AGENT_TEMPLATE.format(role=solo_role)
+        mode = "solo"
+    else:
+        planner, executor = args.planner, args.executor
+        multimodal, reviewer = args.multimodal, args.reviewer
+        agents_block = MULTI_AGENTS_TEMPLATE.format(
+            planner=planner, executor=executor, multimodal=multimodal)
+        mode = "multi"
+
     control = CONTROL_TEMPLATE.format(
         task_id=args.task_id, title=args.title, created_at=now_iso(),
-        planner=args.planner, executor=args.executor,
-        multimodal=args.multimodal, reviewer=args.reviewer,
+        mode=mode, agents_block=agents_block,
+        planner=planner, executor=executor,
+        multimodal=multimodal, reviewer=reviewer,
     )
     with open(os.path.join(task_dir, "control.md"), "w", encoding="utf-8") as fh:
         fh.write(control)
@@ -143,7 +170,7 @@ def cmd_init(args: argparse.Namespace) -> int:
         "type": "TASK_CREATED",
         "status": "CREATED",
         "actor": actor,
-        "recipient": {"role": args.planner},
+        "recipient": {"role": solo_role if args.solo else args.planner},
         "caused_by": None,
         "revision_cycle": 0,
         "timestamp": now_iso(),
@@ -227,6 +254,11 @@ def cmd_status(args: argparse.Namespace) -> int:
     if report.events:
         last = report.events[-1]
         print("最近事件摘要: %s" % last.get("summary", ""))
+        approvals = [e for e in report.events if e.get("type") == "REVIEW_APPROVED"]
+        if approvals:
+            payload = approvals[-1].get("payload") or {}
+            if payload.get("self_review") is True:
+                print("批准性质: solo 自审临时批准——未经独立第二模型复核，后续独立审查可覆盖")
     return 0 if report.ok else 1
 
 
@@ -428,6 +460,8 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--executor", default="B")
     sp.add_argument("--multimodal", default="C")
     sp.add_argument("--reviewer", default="A")
+    sp.add_argument("--solo", action="store_true",
+                    help="单会话模式：一个角色扮演全部职责（mode=solo，REVIEW_APPROVED 需自证证据）")
     sp.add_argument("--tasks-dir", default="tasks")
     add_actor_flags(sp, "coordinator")
     sp.set_defaults(func=cmd_init)

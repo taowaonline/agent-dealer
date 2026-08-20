@@ -2,6 +2,16 @@
 
 本项目遵循语义版本（SemVer）。
 
+## [0.3.0] - 2026-08-20
+
+### 新增
+
+- 单会话模式（solo）：`agent_dealer init --solo`，一个客户端/模型扮演 planner/executor/reviewer
+  全部职责（control.md `workflow.mode: solo`）。
+- solo 模式补偿性证据门槛（validator 强制）：`REVIEW_APPROVED` 必须带
+  `payload.self_review: true` 与非空 `payload.reproduced_commands`（`solo-review` 错误码）；
+  `status` 标注"临时批准"性质。multi 模式行为不变。
+
 ## [0.2.1] - 2026-08-13
 
 ### 修正

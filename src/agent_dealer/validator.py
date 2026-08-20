@@ -476,6 +476,13 @@ def validate_control_policy(events: List[Dict[str, Any]], control: Dict[str, Any
         "REVISION_STARTED", "HEARTBEAT", "WORK_READY",
     }
 
+    # Solo 模式（workflow.mode == "solo"）：单个会话/客户端扮演全部角色。
+    # 角色门槛放宽为「任一工作流角色」，但 REVIEW_APPROVED 的证据门槛
+    # 提高（self_review + reproduced_commands，见下）——用机械证据替代
+    # 第二模型的独立判断。默认 multi 模式行为不变。
+    solo = workflow.get("mode", "multi") == "solo"
+    solo_roles = {planner, reviewer} | executors
+
     subtasks: Dict[str, Optional[str]] = {}
     for e in events:
         payload = _event_payload(e)
@@ -522,10 +529,10 @@ def validate_control_policy(events: List[Dict[str, Any]], control: Dict[str, Any
         if etype == "TASK_CREATED" and role not in {planner, "human", "coordinator"}:
             report.error("unauthorized-role",
                          "事件 %s TASK_CREATED 只能由 planning_agent、人类或协调器发布" % sid)
-        if etype in planner_types and role != planner:
+        if etype in planner_types and role != planner and not (solo and role in solo_roles):
             report.error("unauthorized-role",
                          "事件 %s %s 只能由 planning_agent=%s 发布，实际 %s" % (sid, etype, planner, role))
-        if etype in reviewer_types and role != reviewer:
+        if etype in reviewer_types and role != reviewer and not (solo and role in solo_roles):
             report.error("unauthorized-role",
                          "事件 %s %s 只能由 reviewer=%s 发布，实际 %s" % (sid, etype, reviewer, role))
         if etype == "TASK_REOPENED" and role not in {"human", "coordinator"}:
@@ -536,7 +543,7 @@ def validate_control_policy(events: List[Dict[str, Any]], control: Dict[str, Any
             granted = payload.get("role") or payload.get("allow_role")
             if isinstance(granted, str):
                 override_roles.add(granted)
-        if etype in executor_types and role not in executors | override_roles:
+        if etype in executor_types and role not in executors | override_roles and not (solo and role in solo_roles):
             report.error("unauthorized-role",
                          "事件 %s %s 只能由执行角色 %s 发布，实际 %s"
                          % (sid, etype, sorted(executors | override_roles), role))
@@ -617,6 +624,20 @@ def validate_control_policy(events: List[Dict[str, Any]], control: Dict[str, Any
                 if not review_artifacts:
                     report.error("missing-review-artifact",
                                  "事件 %s REVIEW_APPROVED 必须引用版本化 review 产物" % sid)
+
+        # Solo 模式的补偿性证据门槛：发布者=执行者，独立判断缺席，必须
+        # 显式自证——self_review 标记 + 独立重跑过的命令清单（评审时重新
+        # 执行，不接受执行时缓存的结论）。
+        if solo and etype == "REVIEW_APPROVED":
+            if payload.get("self_review") is not True:
+                report.error("solo-review",
+                             "事件 %s solo 模式 REVIEW_APPROVED 必须 payload.self_review=true" % sid)
+            cmds = payload.get("reproduced_commands")
+            if (not isinstance(cmds, list) or not cmds
+                    or not all(isinstance(c, str) and c.strip() for c in cmds)):
+                report.error("solo-review",
+                             "事件 %s solo 模式 REVIEW_APPROVED 必须附 payload.reproduced_commands"
+                             "（评审阶段独立重跑的命令清单）" % sid)
 
 # ---------------------------------------------------------------- 路径与产物
 
