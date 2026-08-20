@@ -12,7 +12,7 @@ mkdir -p "$install_root" "$bin_dir"
 "$python_bin" -m venv "$venv_dir"
 "$venv_dir/bin/python" -m pip install --disable-pip-version-check --upgrade "$project_root"
 
-for command_name in agent-dealer agent-dealer-cli agent_dealer collab; do
+for command_name in agent-dealer agent_dealer collab; do
     source_path="$venv_dir/bin/$command_name"
     target_path="$bin_dir/$command_name"
     if [ -e "$target_path" ] && [ ! -L "$target_path" ]; then

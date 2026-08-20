@@ -1,6 +1,6 @@
 {
   "name": "@taowaonline/agent-dealer",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Vendor-neutral cross-model agent collaboration runtime over a shared directory (MMAC protocol) — npm wrapper for the Python CLI",
   "license": "MIT",
   "repository": {
@@ -8,8 +8,7 @@
     "url": "git+https://github.com/taowaonline/agent-dealer.git"
   },
   "bin": {
-    "agent-dealer": "bin/agent-dealer.js",
-    "agent-dealer-cli": "bin/agent-dealer.js"
+    "agent-dealer": "bin/agent-dealer.js"
   },
   "publishConfig": {
     "access": "public"

@@ -2,6 +2,13 @@
 
 本项目遵循语义版本（SemVer）。
 
+## [0.5.2] - 2026-08-20
+
+### 变更
+
+- 移除 `agent-dealer-cli` 兼容别名（npm bin、pip scripts、install-global.sh），
+  唯一命令为 `agent-dealer`；旧版兼容命令仅保留 `agent_dealer`、`collab`。
+
 ## [0.5.1] - 2026-08-20
 
 ### 变更

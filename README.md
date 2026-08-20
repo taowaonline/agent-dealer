@@ -8,7 +8,7 @@
 
 厂商无关的跨模型 Agent 协作运行时。Claude Code、Codex、Kimi、Cursor 或本地模型不需要共享厂商会话，只通过共享目录里的结构化事件、版本化产物和 SHA-256 哈希即可完成规划、执行、审查与返工。
 
-**当前状态：Developer Preview（v0.5.1）。** 默认威胁模型为可信本地客户端（见 [SECURITY.md](SECURITY.md)）。
+**当前状态：Developer Preview（v0.5.2）。** 默认威胁模型为可信本地客户端（见 [SECURITY.md](SECURITY.md)）。
 
 ## 安装
 
@@ -33,7 +33,7 @@ agent-dealer --version
 ```
 
 默认安装到 `~/.local/share/agent_dealer/venv`，并在 `~/.local/bin` 创建
-主命令 `agent-dealer`，并保留旧版兼容命令 `agent-dealer-cli`、`agent_dealer`、`collab`。若
+主命令 `agent-dealer`（旧版兼容命令 `agent_dealer`、`collab` 一并保留）。若
 shell 找不到命令，把 `~/.local/bin` 加入 `PATH`。更新代码后重新运行安装脚本即可升级全局命令。
 
 ## 五分钟 Quick Start
@@ -148,7 +148,7 @@ evals/                     skill-up Agent 行为评测
 
 A vendor-neutral runtime for cross-model agent collaboration. Claude Code, Codex, Kimi, Cursor, or local models never share a vendor session: they plan, execute, review, and rework purely through structured events, versioned artifacts, and SHA-256 hashes in a shared directory.
 
-**Status: Developer Preview (v0.5.1).** The default threat model is trusted local clients (see [SECURITY.md](SECURITY.md)).
+**Status: Developer Preview (v0.5.2).** The default threat model is trusted local clients (see [SECURITY.md](SECURITY.md)).
 
 ## Installation
 
@@ -173,10 +173,9 @@ agent-dealer --version
 ```
 
 This installs to `~/.local/share/agent_dealer/venv` and creates the primary command
-`agent-dealer` in `~/.local/bin`, keeping the legacy aliases `agent-dealer-cli`,
-`agent_dealer`, and `collab`. If your shell cannot find the command, add
-`~/.local/bin` to your `PATH`. Re-run the script after updating the code to upgrade
-the global command.
+`agent-dealer` in `~/.local/bin` (legacy aliases `agent_dealer` and `collab` are kept).
+If your shell cannot find the command, add `~/.local/bin` to your `PATH`.
+Re-run the script after updating the code to upgrade the global command.
 
 ## Five-minute Quick Start
 

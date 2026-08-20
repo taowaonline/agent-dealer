@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agent-dealer"
-version = "0.5.1"
+version = "0.5.2"
 description = "Vendor-neutral cross-model agent collaboration runtime over a shared directory (MMAC protocol)"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -30,7 +30,6 @@ dev = ["coverage>=7", "build>=1", "twine>=5"]
 
 [project.scripts]
 agent-dealer = "agent_dealer.cli:main"
-agent-dealer-cli = "agent_dealer.cli:main"
 agent_dealer = "agent_dealer.cli:main"
 collab = "agent_dealer.cli:main"
 
