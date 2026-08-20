@@ -2,6 +2,20 @@
 
 本项目遵循语义版本（SemVer）。
 
+## [0.5.0] - 2026-08-20
+
+### 新增
+
+- npm 发行：`npm install -g agent-dealer-cli`（零 Node 依赖 shim 定位系统 Python ≥ 3.9
+  运行包内源码；同时提供 `agent-dealer` / `agent_dealer` 两个命令）。
+- 客户端注册表扩展：探测覆盖 Claude Code、Codex、Kimi、DeepSeek、z.ai (GLM)、Cursor
+  （`cursor-agent`/`cursor`）、Gemini；每客户端支持多候选命令名（如 zai 的 `zai`/`glm`）。
+- 模型目录：`agent_dealer models --init` 生成 `~/.agent_dealer/models.json`（可用
+  `MMAC_MODELS_FILE` 覆盖路径），声明各模型的 client/model/原生 effort 档位/thinking；
+  `agent_dealer models` 合并显示已装客户端与本机可用模型（如 gpt-5.6-sol high、
+  glm-5.3 max）。
+- 新增 DeepSeek 与 z.ai (GLM) 客户端指南（`docs/client-guides/`）。
+
 ## [0.4.0] - 2026-08-20
 
 ### 新增

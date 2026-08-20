@@ -129,7 +129,9 @@ solo 模式补偿门槛：发布者与执行者同源时，独立判断缺席，
 
 ## 9. 运行模式
 
-- **启动前**：`agent_dealer models` 探测本机已安装的模型客户端及版本；
+- **启动前**：`agent_dealer models` 探测本机已安装的模型客户端（claude/codex/kimi/
+  deepseek/zai/cursor 等）及可用模型档位（模型目录 `~/.agent_dealer/models.json`，
+  `--init` 生成模板后填写各模型的原生 effort/thinking 档位）；
   `init` 时用 `--effort {low,medium,high,max}`、`--thinking {on,off}`、
   `--permission-mode {yolo,confirm}`（默认 yolo，自动执行无需确认）配置全局档位，
   `--role-config 角色:键=值`（键：effort/thinking/model）按角色覆盖，如 `A:effort=high`。

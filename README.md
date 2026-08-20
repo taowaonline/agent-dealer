@@ -23,11 +23,18 @@ agent_dealer --version
 主命令 `agent_dealer`，并保留旧版兼容命令 `collab`。若 shell 找不到命令，把
 `~/.local/bin` 加入 `PATH`。更新代码后重新运行安装脚本即可升级全局命令。
 
+也可以通过 npm 安装（自动定位系统 Python ≥ 3.9，无需 pip）：
+
+```bash
+npm install -g agent-dealer-cli
+agent-dealer --version
+```
+
 ## 五分钟 Quick Start
 
 ```bash
-# 0. 探测本机已安装的模型客户端及版本
-agent_dealer models
+# 0. 探测本机已安装的模型客户端及可用模型档位（gpt-5.6-sol high、glm-5.3 max 等）
+agent_dealer models          # 首次可先 agent_dealer models --init 生成模型目录模板并编辑
 
 # 1. 创建任务（目录、control.md、TASK_CREATED 事件一步到位）；
 #    档位：--effort low|medium|high|max、--thinking on|off、

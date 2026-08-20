@@ -89,39 +89,110 @@ budget:
 
 COORD_HEADER = "# Coordination Log — {task_id}\n\n本文件只追加完整事件块，是任务协作状态的唯一事实来源。\n"
 
-CLIENT_CANDIDATES = ["codex", "claude", "kimi", "cursor", "gemini"]
+CLIENT_REGISTRY: List[Dict[str, Any]] = [
+    {"client": "claude", "label": "Claude Code", "commands": ["claude"]},
+    {"client": "codex", "label": "Codex CLI", "commands": ["codex"]},
+    {"client": "kimi", "label": "Kimi CLI", "commands": ["kimi"]},
+    {"client": "deepseek", "label": "DeepSeek", "commands": ["deepseek"]},
+    {"client": "zai", "label": "z.ai (GLM)", "commands": ["zai", "glm"]},
+    {"client": "cursor", "label": "Cursor", "commands": ["cursor-agent", "cursor"]},
+    {"client": "gemini", "label": "Gemini CLI", "commands": ["gemini"]},
+]
 
 VALID_EFFORTS = ("low", "medium", "high", "max")
 VALID_THINKING = ("on", "off")
 VALID_PERMISSION_MODES = ("yolo", "confirm")
 ROLE_CONFIG_KEYS = ("effort", "thinking", "model")
 
+MODELS_FILE_ENV = "MMAC_MODELS_FILE"
+
+
+def models_catalog_path() -> str:
+    override = os.environ.get(MODELS_FILE_ENV)
+    if override:
+        return override
+    return os.path.join(os.path.expanduser("~"), ".agent_dealer", "models.json")
+
+
+MODELS_CATALOG_TEMPLATE = {
+    "models": [
+        {"client": "claude", "model": "gpt-5.6-sol",
+         "efforts": ["low", "medium", "high"], "thinking": True},
+        {"client": "claude", "model": "glm-5.3",
+         "efforts": ["low", "medium", "high", "max"], "thinking": True},
+        {"client": "kimi", "model": "kimi-k2.5",
+         "efforts": ["low", "medium", "high"], "thinking": False},
+    ],
+}
+
+
+def load_models_catalog(path: str = None) -> List[Dict[str, Any]]:
+    """读取用户声明的模型目录（client/model/efforts/thinking）。目录缺失=空；坏文件降级为空并提示。"""
+    catalog_path = path or models_catalog_path()
+    if not os.path.isfile(catalog_path):
+        return []
+    try:
+        with open(catalog_path, encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (OSError, json.JSONDecodeError):
+        print("⚠ 模型目录 %s 解析失败，已忽略（可用 agent_dealer models --init 重建）" % catalog_path)
+        return []
+    entries = data.get("models") if isinstance(data, dict) else data
+    if not isinstance(entries, list):
+        return []
+    models = []
+    for entry in entries:
+        if isinstance(entry, dict) and isinstance(entry.get("model"), str) and entry["model"]:
+            models.append({
+                "client": entry.get("client", ""),
+                "model": entry["model"],
+                "efforts": [e for e in (entry.get("efforts") or []) if isinstance(e, str)],
+                "thinking": bool(entry.get("thinking", False)),
+            })
+    return models
+
 
 def probe_clients() -> List[Dict[str, Any]]:
-    """探测 PATH 中已安装的模型客户端 CLI 及其版本（探测失败一律降级不抛）。"""
+    """探测 PATH 中已安装的模型客户端 CLI 及其版本（探测失败一律降级不抛）。
+
+    每个客户端按 commands 顺序探测候选命令名（如 zai 的 zai/glm、
+    Cursor 的 cursor-agent/cursor），命中第一个即用。
+    """
     results: List[Dict[str, Any]] = []
-    for cmd in CLIENT_CANDIDATES:
-        path = shutil.which(cmd)
-        if not path:
-            results.append({"client": cmd, "path": None, "installed": False, "version": None})
+    for spec in CLIENT_REGISTRY:
+        found_cmd = found_path = None
+        for cmd in spec["commands"]:
+            found_path = shutil.which(cmd)
+            if found_path:
+                found_cmd = cmd
+                break
+        if not found_cmd:
+            results.append({"client": spec["client"], "label": spec["label"],
+                            "path": None, "installed": False, "version": None})
             continue
         version = "unknown"
         try:
-            proc = subprocess.run([cmd, "--version"], capture_output=True, timeout=10)
+            proc = subprocess.run([found_cmd, "--version"], capture_output=True, timeout=10)
             if proc.returncode == 0:
                 text = (proc.stdout or proc.stderr).decode("utf-8", "replace").strip()
                 if text:
                     version = text.splitlines()[0][:120]
         except (subprocess.TimeoutExpired, OSError):
             pass
-        results.append({"client": cmd, "path": path, "installed": True, "version": version})
+        results.append({"client": spec["client"], "label": spec["label"],
+                        "path": found_path, "installed": True, "version": version})
     return results
 
 
 def cmd_models(args: argparse.Namespace) -> int:
+    if getattr(args, "init_catalog", False):
+        return _init_models_catalog()
     probed = probe_clients()
+    installed = {item["client"] for item in probed if item["installed"]}
+    catalog_path = models_catalog_path()
+    models = load_models_catalog(catalog_path)
     if args.json:
-        _out(probed, True)
+        _out({"clients": probed, "models": models, "catalog_path": catalog_path}, True)
         return 0
     print("模型客户端探测：")
     for item in probed:
@@ -129,7 +200,35 @@ def cmd_models(args: argparse.Namespace) -> int:
             print("  %s ✓ %s（%s）" % (item["client"], item["version"], item["path"]))
         else:
             print("  %s ✗ 未安装" % item["client"])
-    print("提示: init 时用 --model/--effort/--thinking/--permission-mode 配置档位")
+    if models:
+        print("可用模型（目录 %s）：" % catalog_path)
+        by_client: Dict[str, List[Dict[str, Any]]] = {}
+        for m in models:
+            by_client.setdefault(m["client"] or "（未标注客户端）", []).append(m)
+        for client, entries in by_client.items():
+            mark = "✓" if client in installed else "⚠ 客户端未探测到"
+            for m in entries:
+                print("  %s %s（effort: %s | thinking: %s）[%s]" % (
+                    client, m["model"], "/".join(m["efforts"]) or "-",
+                    "支持" if m["thinking"] else "不支持", mark))
+    else:
+        print("模型目录 %s 不存在：agent_dealer models --init 生成模板后，"
+              "把本机可用模型及其原生档位填进去（如 gpt-5.6-sol high、glm-5.3 max）" % catalog_path)
+    print("提示: init 时用 --model/--effort/--thinking/--permission-mode/--role-config 配置档位")
+    return 0
+
+
+def _init_models_catalog() -> int:
+    catalog_path = models_catalog_path()
+    if os.path.exists(catalog_path):
+        print("✗ 已存在 %s（不覆盖）；手工编辑即可" % catalog_path)
+        return 1
+    os.makedirs(os.path.dirname(catalog_path), exist_ok=True)
+    with open(catalog_path, "w", encoding="utf-8") as fh:
+        json.dump(MODELS_CATALOG_TEMPLATE, fh, ensure_ascii=False, indent=2)
+        fh.write("\n")
+    print("✓ 模型目录模板已写入 %s" % catalog_path)
+    print("  请按本机实际情况编辑：每条 = client + model + efforts（原生档位）+ thinking")
     return 0
 
 
@@ -722,8 +821,10 @@ def build_parser() -> argparse.ArgumentParser:
     add_actor_flags(sp, "coordinator")
     sp.set_defaults(func=cmd_init)
 
-    sp = sub.add_parser("models", help="探测已安装的模型客户端")
+    sp = sub.add_parser("models", help="探测已安装的模型客户端与可用模型档位")
     sp.add_argument("--json", action="store_true")
+    sp.add_argument("--init", action="store_true", dest="init_catalog",
+                    help="生成模型目录模板 %s（不存在时）" % models_catalog_path())
     sp.set_defaults(func=cmd_models)
 
     sp = sub.add_parser("doctor", help="综合诊断")
