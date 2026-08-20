@@ -1,16 +1,25 @@
 # agent-dealer-cli
 
+[![npm version](https://img.shields.io/npm/v/agent-dealer-cli)](https://www.npmjs.com/package/agent-dealer-cli)
+
 厂商无关的跨模型 Agent 协作运行时。Claude Code、Codex、Kimi、Cursor 或本地模型不需要共享厂商会话，只通过共享目录里的结构化事件、版本化产物和 SHA-256 哈希即可完成规划、执行、审查与返工。
 
 **当前状态：Developer Preview（v0.5.0）。** 默认威胁模型为可信本地客户端（见 [SECURITY.md](SECURITY.md)）。
 
 ## 安装
 
+npm 一行安装（零 Node 依赖的 wrapper，自动定位系统 Python ≥ 3.9，无需 pip）：
+
+```bash
+npm install -g agent-dealer-cli
+agent-dealer-cli --version
+```
+
+或从源码安装（运行时零第三方依赖，Python ≥ 3.9）：
+
 ```bash
 python -m venv .venv && .venv/bin/pip install -e .
 ```
-
-运行时零第三方依赖，Python ≥ 3.9。
 
 要在任意目录、其他终端和新 session 中直接使用，执行一次：
 
@@ -22,13 +31,6 @@ agent-dealer-cli --version
 默认安装到 `~/.local/share/agent_dealer/venv`，并在 `~/.local/bin` 创建
 主命令 `agent-dealer-cli`，并保留旧版兼容命令 `agent_dealer`、`collab`。若 shell 找不到命令，把
 `~/.local/bin` 加入 `PATH`。更新代码后重新运行安装脚本即可升级全局命令。
-
-也可以通过 npm 安装（自动定位系统 Python ≥ 3.9，无需 pip）：
-
-```bash
-npm install -g agent-dealer-cli
-agent-dealer-cli --version
-```
 
 ## 五分钟 Quick Start
 
@@ -110,13 +112,13 @@ Runner 只负责唤醒与监控，不替 Agent 伪造审查。详见 [docs/proto
 ## 测试
 
 ```bash
-python -m unittest discover -s tests        # 206 项核心测试
+python -m unittest discover -s tests        # 260 项核心测试
 python -m unittest tools.csv2json.tests.test_csv2json  # 22 项示例测试
 python -m unittest tasks.task-20260810-002.fixtures.test_validate_fixtures  # 22 项兼容测试
 skill-up validate evals/eval.yaml           # Agent 行为评测配置
 ```
 
-当前共 250 项确定性测试通过；核心包覆盖率 91%。
+当前共 304 项确定性测试通过；核心包覆盖率 93%。
 
 ## 目录结构
 
