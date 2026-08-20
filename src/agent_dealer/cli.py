@@ -1,4 +1,4 @@
-"""agent-dealer-cli CLI（Python 模块名 agent_dealer）（P1-02 / P1-03 / P1-04）。
+"""agent-dealer CLI（Python 模块名 agent_dealer）（P1-02 / P1-03 / P1-04）。
 
 子命令：
   init      创建任务目录、control.md、目录结构并发布 TASK_CREATED
@@ -482,7 +482,7 @@ def cmd_init(args: argparse.Namespace) -> int:
     store = TaskStore(task_dir)
     store.publish(event, owner=args.instance_id)
     print("✓ 已创建 %s（TASK_CREATED 已发布并通过校验）" % task_dir)
-    print("  下一步: agent-dealer-cli next %s" % task_dir)
+    print("  下一步: agent-dealer next %s" % task_dir)
     return 0
 
 
@@ -678,7 +678,7 @@ def cmd_event_prepare(args: argparse.Namespace) -> int:
     with open(out_path, "w", encoding="utf-8") as fh:
         json.dump(event, fh, ensure_ascii=False, indent=2)
     print("✓ 候选事件模板已写入 %s" % out_path)
-    print("  预校验: agent-dealer-cli publish --dry-run %s %s" % (args.task_dir, out_path))
+    print("  预校验: agent-dealer publish --dry-run %s %s" % (args.task_dir, out_path))
     return 0
 
 
@@ -890,7 +890,7 @@ def cmd_report(args: argparse.Namespace) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
-        prog="agent-dealer-cli",
+        prog="agent-dealer",
         description="跨模型 Agent 共享目录协作运行时（MMAC）")
     p.add_argument("--version", action="store_true", help="打印版本")
     sub = p.add_subparsers(dest="command")

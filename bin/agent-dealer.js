@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * agent-dealer-cli 启动 shim：
+ * agent-dealer 启动 shim：
  * 定位 Python >= 3.9（python3 / python，Windows 走 py -3），
  * 以包内 src/ 为 PYTHONPATH 运行 agent_dealer CLI，透传参数、TTY 与退出码。
  * 本文件零依赖，纯 Node 标准库。
@@ -31,7 +31,7 @@ for (const cmd of candidates) {
   process.exit(result.status === null ? 1 : result.status);
 }
 
-console.error('agent-dealer-cli: 未找到可用的 Python（需要 Python >= 3.9）。');
+console.error('agent-dealer: 未找到可用的 Python（需要 Python >= 3.9）。');
 console.error('请安装 Python 后重试：https://www.python.org/downloads/');
 if (lastError) {
   console.error(String(lastError));

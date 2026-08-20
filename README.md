@@ -1,4 +1,4 @@
-# agent-dealer-cli
+# agent-dealer
 
 [![npm version](https://img.shields.io/npm/v/@taowaonline%2Fagent-dealer)](https://www.npmjs.com/package/@taowaonline/agent-dealer)
 
@@ -8,7 +8,7 @@
 
 厂商无关的跨模型 Agent 协作运行时。Claude Code、Codex、Kimi、Cursor 或本地模型不需要共享厂商会话，只通过共享目录里的结构化事件、版本化产物和 SHA-256 哈希即可完成规划、执行、审查与返工。
 
-**当前状态：Developer Preview（v0.5.0）。** 默认威胁模型为可信本地客户端（见 [SECURITY.md](SECURITY.md)）。
+**当前状态：Developer Preview（v0.5.1）。** 默认威胁模型为可信本地客户端（见 [SECURITY.md](SECURITY.md)）。
 
 ## 安装
 
@@ -16,7 +16,7 @@ npm 一行安装（零 Node 依赖的 wrapper，自动定位系统 Python ≥ 3.
 
 ```bash
 npm install -g @taowaonline/agent-dealer
-agent-dealer-cli --version
+agent-dealer --version
 ```
 
 或从源码安装（运行时零第三方依赖，Python ≥ 3.9）：
@@ -29,46 +29,46 @@ python -m venv .venv && .venv/bin/pip install -e .
 
 ```bash
 ./scripts/install-global.sh
-agent-dealer-cli --version
+agent-dealer --version
 ```
 
 默认安装到 `~/.local/share/agent_dealer/venv`，并在 `~/.local/bin` 创建
-主命令 `agent-dealer-cli`，并保留旧版兼容命令 `agent_dealer`、`collab`。若 shell 找不到命令，把
-`~/.local/bin` 加入 `PATH`。更新代码后重新运行安装脚本即可升级全局命令。
+主命令 `agent-dealer`，并保留旧版兼容命令 `agent-dealer-cli`、`agent_dealer`、`collab`。若
+shell 找不到命令，把 `~/.local/bin` 加入 `PATH`。更新代码后重新运行安装脚本即可升级全局命令。
 
 ## 五分钟 Quick Start
 
 ```bash
 # 0. 探测本机已安装的模型客户端及可用模型档位（gpt-5.6-sol high、glm-5.3 max 等）
-agent-dealer-cli models          # 首次可先 agent-dealer-cli models --init 生成模型目录模板并编辑
+agent-dealer models          # 首次可先 agent-dealer models --init 生成模型目录模板并编辑
 
 # 1. 创建任务（目录、control.md、TASK_CREATED 事件一步到位）；
 #    档位：--effort low|medium|high|max、--thinking on|off、
 #    --permission-mode yolo|confirm（默认 yolo）、--role-config 角色:键=值 按角色覆盖
-agent-dealer-cli init task-demo-001 --title "我的第一个协作任务" --model kimi-k2.5 \
+agent-dealer init task-demo-001 --title "我的第一个协作任务" --model kimi-k2.5 \
   --effort high --thinking on --role-config A:model=gpt-5.6-luna
 
 # 2. 诊断任务健康度
-agent-dealer-cli doctor tasks/task-demo-001
+agent-dealer doctor tasks/task-demo-001
 
 # 3. 查看下一步该谁行动
-agent-dealer-cli next tasks/task-demo-001
+agent-dealer next tasks/task-demo-001
 
 # 4. 准备并预校验一个事件（PLANNING_STARTED）
-agent-dealer-cli event prepare tasks/task-demo-001 --type PLANNING_STARTED --role A --model gpt-5.6-luna --out tasks/task-demo-001/tmp/e.json
-agent-dealer-cli publish --dry-run tasks/task-demo-001 tasks/task-demo-001/tmp/e.json
+agent-dealer event prepare tasks/task-demo-001 --type PLANNING_STARTED --role A --model gpt-5.6-luna --out tasks/task-demo-001/tmp/e.json
+agent-dealer publish --dry-run tasks/task-demo-001 tasks/task-demo-001/tmp/e.json
 
 # 5. 原子发布（锁 + 预校验 + 追加 + 复核，一次完成）
-agent-dealer-cli publish tasks/task-demo-001 tasks/task-demo-001/tmp/e.json --instance-id my-session
+agent-dealer publish tasks/task-demo-001 tasks/task-demo-001/tmp/e.json --instance-id my-session
 
 # 6. 任务报告：各 agent 贡献、评审评价与遗留 TODO（--json 机器可读）
-agent-dealer-cli report tasks/task-demo-001
+agent-dealer report tasks/task-demo-001
 ```
 
 一个从 `TASK_CREATED` 到 `REVIEW_APPROVED` 全部校验通过的完整样例在 [`examples/quickstart`](examples/quickstart)：
 
 ```bash
-agent-dealer-cli doctor examples/quickstart
+agent-dealer doctor examples/quickstart
 ```
 
 ## 角色与流程
@@ -101,7 +101,7 @@ CREATED → PLANNING → PLAN_READY → CLAIMED → EXECUTING → WORK_READY →
 
 ```bash
 # adapters.json: {"B": {"type": "manual"}}
-agent-dealer-cli watch tasks/task-demo-001 --adapters adapters.json
+agent-dealer watch tasks/task-demo-001 --adapters adapters.json
 ```
 
 Runner 只负责唤醒与监控，不替 Agent 伪造审查。详见 [docs/protocol.md](docs/protocol.md#runner)。
@@ -148,7 +148,7 @@ evals/                     skill-up Agent 行为评测
 
 A vendor-neutral runtime for cross-model agent collaboration. Claude Code, Codex, Kimi, Cursor, or local models never share a vendor session: they plan, execute, review, and rework purely through structured events, versioned artifacts, and SHA-256 hashes in a shared directory.
 
-**Status: Developer Preview (v0.5.0).** The default threat model is trusted local clients (see [SECURITY.md](SECURITY.md)).
+**Status: Developer Preview (v0.5.1).** The default threat model is trusted local clients (see [SECURITY.md](SECURITY.md)).
 
 ## Installation
 
@@ -156,7 +156,7 @@ One line via npm (a zero-dependency Node wrapper that locates system Python ≥ 
 
 ```bash
 npm install -g @taowaonline/agent-dealer
-agent-dealer-cli --version
+agent-dealer --version
 ```
 
 Or install from source (zero third-party runtime dependencies, Python ≥ 3.9):
@@ -169,47 +169,48 @@ To use the command from any directory, other terminals, and new sessions, run on
 
 ```bash
 ./scripts/install-global.sh
-agent-dealer-cli --version
+agent-dealer --version
 ```
 
 This installs to `~/.local/share/agent_dealer/venv` and creates the primary command
-`agent-dealer-cli` in `~/.local/bin`, keeping the legacy aliases `agent_dealer` and `collab`.
-If your shell cannot find the command, add `~/.local/bin` to your `PATH`.
-Re-run the script after updating the code to upgrade the global command.
+`agent-dealer` in `~/.local/bin`, keeping the legacy aliases `agent-dealer-cli`,
+`agent_dealer`, and `collab`. If your shell cannot find the command, add
+`~/.local/bin` to your `PATH`. Re-run the script after updating the code to upgrade
+the global command.
 
 ## Five-minute Quick Start
 
 ```bash
 # 0. Probe installed model clients and available model tiers (e.g. gpt-5.6-sol high, glm-5.3 max)
-agent-dealer-cli models          # first run: agent-dealer-cli models --init opens the interactive wizard
+agent-dealer models          # first run: agent-dealer models --init opens the interactive wizard
 
 # 1. Create a task (directory, control.md, and the TASK_CREATED event in one step);
 #    tiers: --effort low|medium|high|max, --thinking on|off,
 #    --permission-mode yolo|confirm (default yolo), --role-config ROLE:key=value per-role overrides
-agent-dealer-cli init task-demo-001 --title "My first collaboration task" --model kimi-k2.5 \
+agent-dealer init task-demo-001 --title "My first collaboration task" --model kimi-k2.5 \
   --effort high --thinking on --role-config A:model=gpt-5.6-luna
 
 # 2. Check task health
-agent-dealer-cli doctor tasks/task-demo-001
+agent-dealer doctor tasks/task-demo-001
 
 # 3. See who should act next
-agent-dealer-cli next tasks/task-demo-001
+agent-dealer next tasks/task-demo-001
 
 # 4. Prepare and pre-validate an event (PLANNING_STARTED)
-agent-dealer-cli event prepare tasks/task-demo-001 --type PLANNING_STARTED --role A --model gpt-5.6-luna --out tasks/task-demo-001/tmp/e.json
-agent-dealer-cli publish --dry-run tasks/task-demo-001 tasks/task-demo-001/tmp/e.json
+agent-dealer event prepare tasks/task-demo-001 --type PLANNING_STARTED --role A --model gpt-5.6-luna --out tasks/task-demo-001/tmp/e.json
+agent-dealer publish --dry-run tasks/task-demo-001 tasks/task-demo-001/tmp/e.json
 
 # 5. Atomic publish (lock + pre-validation + append + re-check, all in one)
-agent-dealer-cli publish tasks/task-demo-001 tasks/task-demo-001/tmp/e.json --instance-id my-session
+agent-dealer publish tasks/task-demo-001 tasks/task-demo-001/tmp/e.json --instance-id my-session
 
 # 6. Task report: per-agent contributions, review verdicts, and leftover TODOs (--json for machine output)
-agent-dealer-cli report tasks/task-demo-001
+agent-dealer report tasks/task-demo-001
 ```
 
 A complete sample flowing from `TASK_CREATED` to `REVIEW_APPROVED` with every check passing lives in [`examples/quickstart`](examples/quickstart):
 
 ```bash
-agent-dealer-cli doctor examples/quickstart
+agent-dealer doctor examples/quickstart
 ```
 
 ## Roles & Workflow
@@ -242,7 +243,7 @@ Manual mode requires no API key for this project — every client uses its own l
 
 ```bash
 # adapters.json: {"B": {"type": "manual"}}
-agent-dealer-cli watch tasks/task-demo-001 --adapters adapters.json
+agent-dealer watch tasks/task-demo-001 --adapters adapters.json
 ```
 
 The Runner only wakes agents and monitors progress; it never fakes reviews on their behalf. See [docs/protocol.md](docs/protocol.md#runner).

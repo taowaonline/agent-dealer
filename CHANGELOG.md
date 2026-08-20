@@ -2,6 +2,17 @@
 
 本项目遵循语义版本（SemVer）。
 
+## [0.5.1] - 2026-08-20
+
+### 变更
+
+- 全局主命令改为 **agent-dealer**：npm bin、pip scripts、CLI prog、文档与
+  install-global.sh 统一；`agent-dealer-cli`、`agent_dealer`、`collab` 保留为兼容别名。
+- pip 分发名同步改为 `agent-dealer`（Python 模块名仍为 `agent_dealer` 不变）。
+- npm 分发名不变：`@taowaonline/agent-dealer`。
+- 移除 install-global.sh 中 v0.2.0 时代对 `agent-dealer` 符号链接的历史清理逻辑
+  （该命令现为主命令）。
+
 ## [0.5.0] - 2026-08-20
 
 ### 变更
