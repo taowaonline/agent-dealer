@@ -1,6 +1,6 @@
 # agent-dealer-cli
 
-[![npm version](https://img.shields.io/npm/v/agent-dealer-cli)](https://www.npmjs.com/package/agent-dealer-cli)
+[![npm version](https://img.shields.io/npm/v/@taowaonline%2Fagent-dealer)](https://www.npmjs.com/package/@taowaonline/agent-dealer)
 
 **简体中文** · [English](#english)
 
@@ -15,7 +15,7 @@
 npm 一行安装（零 Node 依赖的 wrapper，自动定位系统 Python ≥ 3.9，无需 pip）：
 
 ```bash
-npm install -g agent-dealer-cli
+npm install -g @taowaonline/agent-dealer
 agent-dealer-cli --version
 ```
 
@@ -155,7 +155,7 @@ A vendor-neutral runtime for cross-model agent collaboration. Claude Code, Codex
 One line via npm (a zero-dependency Node wrapper that locates system Python ≥ 3.9 — no pip needed):
 
 ```bash
-npm install -g agent-dealer-cli
+npm install -g @taowaonline/agent-dealer
 agent-dealer-cli --version
 ```
 

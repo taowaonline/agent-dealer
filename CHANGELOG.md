@@ -12,7 +12,7 @@
 
 ### 新增
 
-- npm 发行：`npm install -g agent-dealer-cli`（零 Node 依赖 shim 定位系统 Python ≥ 3.9
+- npm 发行：`npm install -g @taowaonline/agent-dealer`（零 Node 依赖 shim 定位系统 Python ≥ 3.9
   运行包内源码，命令 `agent-dealer-cli`）。
 - 客户端注册表扩展：探测覆盖 Claude Code、Codex、Kimi、DeepSeek、z.ai (GLM)、Cursor
   （`cursor-agent`/`cursor`）、Gemini；每客户端支持多候选命令名（如 zai 的 `zai`/`glm`）。
