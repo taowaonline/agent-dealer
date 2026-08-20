@@ -5,7 +5,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/taowaonline/agent-dealer-cli.git"
+    "url": "git+https://github.com/taowaonline/agent-dealer.git"
   },
   "bin": {
     "agent-dealer": "bin/agent-dealer.js",
