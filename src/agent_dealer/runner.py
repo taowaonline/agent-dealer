@@ -102,25 +102,51 @@ class Runner:
             return None
         return last
 
+    def read_control(self) -> Dict[str, Any]:
+        """轻量读取 control.md（不走全量校验；报错进 report 但这里忽略）。"""
+        return validator.parse_control(
+            self.store.task_dir, validator.ValidationReport(self.store.task_dir))
+
+    def role_config(self, recipient: str) -> Dict[str, str]:
+        """从 control.md 取角色档位（agents_detail + workflow.permission_mode）。"""
+        control = self.read_control()
+        detail = (control.get("agents_detail") or {}).get(recipient) or {}
+        model = detail.get("model")
+        if not isinstance(model, str) or validator.is_placeholder_model(model):
+            model = ""  # 未配置真实 model 时留空，不注入占位符
+        return {
+            "model": model,
+            "effort": detail.get("effort") if isinstance(detail.get("effort"), str) else "medium",
+            "thinking": detail.get("thinking") if isinstance(detail.get("thinking"), str) else "off",
+            "permission_mode": (control.get("workflow") or {}).get("permission_mode", "yolo"),
+        }
+
     def dispatch(self, event: Dict[str, Any]) -> AdapterResult:
         recipient = (event.get("recipient") or {}).get("role")
         adapter = self.adapters.get(recipient)
         if adapter is None:
             raise MMACError(E601_RUNNER, "没有处理角色 %r 的 adapter" % recipient)
-        prompt = self.build_prompt(event)
-        result = adapter.start(self.store.task_dir, recipient, prompt, event)
+        config = self.role_config(recipient) if isinstance(recipient, str) else {}
+        prompt = self.build_prompt(event, config)
+        result = adapter.start(self.store.task_dir, recipient, prompt, event, config)
         self.state.mark(event["event_id"])
         return result
 
-    def build_prompt(self, event: Dict[str, Any]) -> str:
+    def build_prompt(self, event: Dict[str, Any],
+                     config: Optional[Dict[str, str]] = None) -> str:
         recipient = (event.get("recipient") or {}).get("role", "?")
+        cfg = config or {}
         return (
             "读取共享目录中的 SKILL.md 和任务 %s 的 control.md、coordination.md。\n"
             "你当前担任角色 %s。验证协议状态（python3 -m agent_dealer validate %s），"
             "只处理发送给该角色且尚未处理的最新事件（event_id=%s，type=%s）。\n"
+            "模型档位：model=%s effort=%s thinking=%s permission_mode=%s"
+            "（按客户端原生参数启用；permission_mode=yolo 时无需确认直接执行）。\n"
             "完成一次合法状态转换后写入产物和事件，然后退出。"
             % (os.path.basename(self.store.task_dir), recipient,
-               self.store.task_dir, event.get("event_id"), event.get("type"))
+               self.store.task_dir, event.get("event_id"), event.get("type"),
+               cfg.get("model") or "(未配置)", cfg.get("effort", "medium"),
+               cfg.get("thinking", "off"), cfg.get("permission_mode", "yolo"))
         )
 
     def run_once(self, report: Optional[validator.ValidationReport] = None

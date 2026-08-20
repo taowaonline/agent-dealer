@@ -31,11 +31,13 @@ class Adapter:
         """客户端/通道是否可用。"""
         return True
 
-    def build_command(self, task_dir: str, role: str, prompt: str) -> Optional[List[str]]:
+    def build_command(self, task_dir: str, role: str, prompt: str,
+                      config: Optional[Dict[str, str]] = None) -> Optional[List[str]]:
         return None
 
     def start(self, task_dir: str, role: str, prompt: str,
-              event: Dict[str, Any]) -> AdapterResult:
+              event: Dict[str, Any],
+              config: Optional[Dict[str, str]] = None) -> AdapterResult:
         raise NotImplementedError
 
     def poll(self, run_id: str) -> str:

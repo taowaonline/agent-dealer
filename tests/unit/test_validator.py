@@ -360,5 +360,64 @@ class FixtureSuiteTests(unittest.TestCase):
                 self.assertFalse(self._run(name).ok, name)
 
 
+class AgentsDetailTests(TaskTestCase):
+    """agents_detail 子字段解析与新档位字段校验（缺失零报错，存在才校验）。"""
+
+    def _rewrite_control(self, transform):
+        path = os.path.join(self.task_dir, "control.md")
+        with open(path, encoding="utf-8") as fh:
+            text = fh.read()
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(transform(text))
+
+    def test_parse_agents_detail(self):
+        report = self.validate()
+        self.assertTrue(report.ok, [str(i) for i in report.errors])
+        detail = report.control["agents_detail"]
+        self.assertEqual(detail["A"]["model"], "gpt-5.6-luna")
+        self.assertEqual(detail["A"]["client"], "codex")
+        self.assertEqual(detail["B"]["model"], "kimi-k2.5")
+        self.assertNotIn("effort", detail["A"])  # 旧 control 无新字段：不报错也不造值
+
+    def test_valid_tier_fields_accepted(self):
+        self._rewrite_control(lambda t: t.replace(
+            "    model: gpt-5.6-luna\n",
+            "    model: gpt-5.6-luna\n    effort: high\n    thinking: on\n", 1))
+        self._rewrite_control(lambda t: t.replace(
+            "  planning_agent: A\n",
+            "  planning_agent: A\n  permission_mode: yolo\n", 1))
+        report = self.validate()
+        self.assertTrue(report.ok, [str(i) for i in report.errors])
+        self.assertEqual(report.control["agents_detail"]["A"]["effort"], "high")
+        self.assertEqual(report.control["workflow"]["permission_mode"], "yolo")
+
+    def test_invalid_effort_rejected(self):
+        self._rewrite_control(lambda t: t.replace(
+            "    model: gpt-5.6-luna\n",
+            "    model: gpt-5.6-luna\n    effort: ultra\n", 1))
+        self.assertIn("control-effort-invalid", self.rules(self.validate()))
+
+    def test_invalid_thinking_rejected(self):
+        self._rewrite_control(lambda t: t.replace(
+            "    model: kimi-k2.5\n",
+            "    model: kimi-k2.5\n    thinking: maybe\n", 1))
+        self.assertIn("control-thinking-invalid", self.rules(self.validate()))
+
+    def test_invalid_permission_mode_rejected(self):
+        self._rewrite_control(lambda t: t.replace(
+            "  planning_agent: A\n",
+            "  planning_agent: A\n  permission_mode: auto\n", 1))
+        self.assertIn("control-permission-mode-invalid", self.rules(self.validate()))
+
+    def test_legacy_control_without_tier_fields_is_clean(self):
+        # 显式回归护栏：helpers.CONTROL（无 effort/thinking/permission_mode）零错误
+        report = self.validate()
+        self.assertTrue(report.ok, [str(i) for i in report.errors])
+        rules = {i.rule for i in report.errors} | {i.rule for i in report.warnings}
+        for rule in ("control-effort-invalid", "control-thinking-invalid",
+                     "control-permission-mode-invalid"):
+            self.assertNotIn(rule, rules)
+
+
 if __name__ == "__main__":
     unittest.main()

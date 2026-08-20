@@ -129,6 +129,12 @@ solo 模式补偿门槛：发布者与执行者同源时，独立判断缺席，
 
 ## 9. 运行模式
 
+- **启动前**：`agent_dealer models` 探测本机已安装的模型客户端及版本；
+  `init` 时用 `--effort {low,medium,high,max}`、`--thinking {on,off}`、
+  `--permission-mode {yolo,confirm}`（默认 yolo，自动执行无需确认）配置全局档位，
+  `--role-config 角色:键=值`（键：effort/thinking/model）按角色覆盖，如 `A:effort=high`。
+  档位写入 control.md；Runner 唤醒时经 MMAC_MODEL/MMAC_EFFORT/MMAC_THINKING/
+  MMAC_PERMISSION_MODE 环境变量与 argv 占位符注入，具体原生参数以各客户端文档为准。
 - **手动接力**：用户依次启动客户端，使用统一启动提示（见 `docs/client-guides/`）。
 - **Runner**：`agent_dealer watch tasks/<task-id> --adapters adapters.json` 按事件自动唤醒下一角色
   （manual/command adapter；只唤醒不伪造审查；event_id 去重，重启不重复调度）。
@@ -158,3 +164,8 @@ solo 模式补偿门槛：发布者与执行者同源时，独立判断缺席，
 执行者自评通过、进程退出或文件存在，都不能单独构成完成证明。
 solo 模式下的 APPROVED 是**临时完成**：机械证据齐备但未经独立第二模型复核，
 `status` 会标注其性质；正式完成以独立审查为准。
+
+任务收尾用 `agent_dealer report tasks/<task-id>` 输出任务报告：各 agent 的事件与
+产物贡献、最新评审评分与问题、遗留 TODO（未消化的 REVISION_REQUIRED 问题、
+solo 临时批准待复核、BLOCKED 原因）；`watch` 到达终态时自动打印摘要。
+报告只读事件链，不构成完成证明——完成定义仍以上段为准。

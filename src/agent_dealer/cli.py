@@ -2,6 +2,7 @@
 
 子命令：
   init      创建任务目录、control.md、目录结构并发布 TASK_CREATED
+  models    探测已安装的模型客户端 CLI 及版本
   doctor    环境 + 配置 + 事件链 + 产物 + 锁 + 密钥扫描综合诊断
   status    人类可读状态摘要（--json 机器可读）
   next      下一步应由谁行动（--role 过滤）
@@ -10,6 +11,7 @@
   publish   唯一原子发布入口（锁 + 预校验 + 产物固化 + 追加 + 复核）
   artifact  add 固化产物并输出 ArtifactRef JSON
   validate  校验任务（等价 python -m agent_dealer.validator）
+  report    任务报告：各 agent 贡献、评价与 TODO
   watch     Runner 监听调度循环
 """
 from __future__ import annotations
@@ -18,11 +20,12 @@ import argparse
 import json
 import os
 import shutil
+import subprocess
 import sys
 from typing import Any, Dict, List, Optional
 
 from . import validator
-from .errors import E202_PLACEHOLDER_MODEL, MMACError
+from .errors import E105_INVALID_CONTROL, E202_PLACEHOLDER_MODEL, MMACError
 from .models import SCHEMA_VERSION
 from .security import scan_tree_secrets
 from .store import TaskStore, new_event_id, now_iso
@@ -40,6 +43,7 @@ task:
 
 workflow:
   mode: {mode}
+  permission_mode: {permission_mode}
   planning_agent: {planner}
   default_executor: {executor}
   multimodal_executor: {multimodal}
@@ -87,6 +91,47 @@ COORD_HEADER = "# Coordination Log — {task_id}\n\n本文件只追加完整事�
 
 CLIENT_CANDIDATES = ["codex", "claude", "kimi", "cursor", "gemini"]
 
+VALID_EFFORTS = ("low", "medium", "high", "max")
+VALID_THINKING = ("on", "off")
+VALID_PERMISSION_MODES = ("yolo", "confirm")
+ROLE_CONFIG_KEYS = ("effort", "thinking", "model")
+
+
+def probe_clients() -> List[Dict[str, Any]]:
+    """探测 PATH 中已安装的模型客户端 CLI 及其版本（探测失败一律降级不抛）。"""
+    results: List[Dict[str, Any]] = []
+    for cmd in CLIENT_CANDIDATES:
+        path = shutil.which(cmd)
+        if not path:
+            results.append({"client": cmd, "path": None, "installed": False, "version": None})
+            continue
+        version = "unknown"
+        try:
+            proc = subprocess.run([cmd, "--version"], capture_output=True, timeout=10)
+            if proc.returncode == 0:
+                text = (proc.stdout or proc.stderr).decode("utf-8", "replace").strip()
+                if text:
+                    version = text.splitlines()[0][:120]
+        except (subprocess.TimeoutExpired, OSError):
+            pass
+        results.append({"client": cmd, "path": path, "installed": True, "version": version})
+    return results
+
+
+def cmd_models(args: argparse.Namespace) -> int:
+    probed = probe_clients()
+    if args.json:
+        _out(probed, True)
+        return 0
+    print("模型客户端探测：")
+    for item in probed:
+        if item["installed"]:
+            print("  %s ✓ %s（%s）" % (item["client"], item["version"], item["path"]))
+        else:
+            print("  %s ✗ 未安装" % item["client"])
+    print("提示: init 时用 --model/--effort/--thinking/--permission-mode 配置档位")
+    return 0
+
 
 def _out(data: Any, as_json: bool) -> None:
     if as_json:
@@ -97,32 +142,75 @@ def _out(data: Any, as_json: bool) -> None:
         print(json.dumps(data, ensure_ascii=False, indent=2))
 
 
-SOLO_AGENT_TEMPLATE = """  {role}:
-    provider: configurable
-    client: configurable
-    model: configurable
-    capabilities: [architecture, planning, review, coding, testing, documentation, vision, image-analysis]
-    cost_weight: 1
-    note: solo 模式——本角色由单一会话扮演 A/B/C 全部职责；REVIEW_APPROVED 需 self_review + reproduced_commands（validator 强制），批准为临时性，可被后续独立审查覆盖"""
+SOLO_AGENT_CAPABILITIES = ("[architecture, planning, review, coding, testing, "
+                           "documentation, vision, image-analysis]")
+SOLO_AGENT_NOTE = ("solo 模式——本角色由单一会话扮演 A/B/C 全部职责；"
+                   "REVIEW_APPROVED 需 self_review + reproduced_commands（validator 强制），"
+                   "批准为临时性，可被后续独立审查覆盖")
 
-MULTI_AGENTS_TEMPLATE = """  {planner}:
-    provider: configurable
-    client: configurable
-    model: configurable
-    capabilities: [architecture, planning, review, reasoning]
-    cost_weight: 5
-  {executor}:
-    provider: configurable
-    client: configurable
-    model: configurable
-    capabilities: [coding, testing, documentation, file-processing]
-    cost_weight: 1
-  {multimodal}:
-    provider: configurable
-    client: configurable
-    model: configurable
-    capabilities: [vision, image-analysis, multimodal]
-    cost_weight: 3"""
+
+def _agent_block(role: str, capabilities: str, cost_weight: int,
+                 overrides: Dict[str, Dict[str, str]],
+                 note: str = "") -> str:
+    """生成 control.md agents 节的单角色块，含可选 effort/thinking/model 覆盖。"""
+    cfg = overrides.get(role, {})
+    lines = [
+        "  %s:" % role,
+        "    provider: configurable",
+        "    client: configurable",
+        "    model: %s" % cfg.get("model", "configurable"),
+        "    capabilities: %s" % capabilities,
+        "    cost_weight: %d" % cost_weight,
+        "    effort: %s" % cfg.get("effort", "medium"),
+        "    thinking: %s" % cfg.get("thinking", "off"),
+    ]
+    if note:
+        lines.append("    note: %s" % note)
+    return "\n".join(lines)
+
+
+def _parse_role_config(entries: List[str],
+                       valid_roles: List[str]) -> Dict[str, Dict[str, str]]:
+    """解析 --role-config 角色:键=值 列表；非法角色/键/值立即报 E105/E202。"""
+    overrides: Dict[str, Dict[str, str]] = {}
+    for entry in entries or []:
+        if ":" not in entry or "=" not in entry:
+            raise MMACError(E105_INVALID_CONTROL,
+                            "--role-config 格式必须为 角色:键=值（收到 %r）" % entry)
+        role, kv = entry.split(":", 1)
+        key, value = kv.split("=", 1)
+        role, key, value = role.strip(), key.strip(), value.strip()
+        if role not in valid_roles:
+            raise MMACError(E105_INVALID_CONTROL,
+                            "--role-config 角色不存在: %r（本任务角色: %s）"
+                            % (role, "/".join(valid_roles)))
+        if key not in ROLE_CONFIG_KEYS:
+            raise MMACError(E105_INVALID_CONTROL,
+                            "--role-config 键必须为 %s 之一（收到 %r）"
+                            % ("/".join(ROLE_CONFIG_KEYS), key))
+        if key == "model":
+            if not value or validator.is_placeholder_model(value):
+                raise MMACError(E202_PLACEHOLDER_MODEL,
+                                "--role-config %s:model 必须为真实模型标识（收到 %r）" % (role, value))
+        elif key == "effort" and value not in VALID_EFFORTS:
+            raise MMACError(E105_INVALID_CONTROL,
+                            "--role-config %s:effort 必须为 %s 之一（收到 %r）"
+                            % (role, "/".join(VALID_EFFORTS), value))
+        elif key == "thinking" and value not in VALID_THINKING:
+            raise MMACError(E105_INVALID_CONTROL,
+                            "--role-config %s:thinking 必须为 %s 之一（收到 %r）"
+                            % (role, "/".join(VALID_THINKING), value))
+        overrides.setdefault(role, {})[key] = value
+    return overrides
+
+
+def _merge_role_config(valid_roles: List[str], effort: str, thinking: str,
+                       entries: List[str]) -> Dict[str, Dict[str, str]]:
+    """全局默认档位 + --role-config 覆盖 → 每角色生效配置。"""
+    merged = {role: {"effort": effort, "thinking": thinking} for role in valid_roles}
+    for role, cfg in _parse_role_config(entries, valid_roles).items():
+        merged.setdefault(role, {}).update(cfg)
+    return merged
 
 
 def cmd_init(args: argparse.Namespace) -> int:
@@ -141,18 +229,27 @@ def cmd_init(args: argparse.Namespace) -> int:
         # 角色门槛放宽，但 REVIEW_APPROVED 必须自证（validator solo-review 规则）。
         solo_role = args.executor or "B"
         planner = executor = multimodal = reviewer = solo_role
-        agents_block = SOLO_AGENT_TEMPLATE.format(role=solo_role)
+        overrides = _merge_role_config(
+            [solo_role], args.effort, args.thinking, args.role_config)
+        agents_block = _agent_block(
+            solo_role, SOLO_AGENT_CAPABILITIES, 1, overrides, note=SOLO_AGENT_NOTE)
         mode = "solo"
     else:
         planner, executor = args.planner, args.executor
         multimodal, reviewer = args.multimodal, args.reviewer
-        agents_block = MULTI_AGENTS_TEMPLATE.format(
-            planner=planner, executor=executor, multimodal=multimodal)
+        overrides = _merge_role_config(
+            [planner, executor, multimodal], args.effort, args.thinking, args.role_config)
+        agents_block = "\n".join([
+            _agent_block(planner, "[architecture, planning, review, reasoning]", 5, overrides),
+            _agent_block(executor, "[coding, testing, documentation, file-processing]", 1, overrides),
+            _agent_block(multimodal, "[vision, image-analysis, multimodal]", 3, overrides),
+        ])
         mode = "multi"
 
     control = CONTROL_TEMPLATE.format(
         task_id=args.task_id, title=args.title, created_at=now_iso(),
-        mode=mode, agents_block=agents_block,
+        mode=mode, permission_mode=args.permission_mode,
+        agents_block=agents_block,
         planner=planner, executor=executor,
         multimodal=multimodal, reviewer=reviewer,
     )
@@ -212,8 +309,8 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     if orphans:
         notes.append("已清理 tmp 孤儿暂存: %s" % ", ".join(orphans))
 
-    # 4. 客户端可用性
-    clients = {c: bool(shutil.which(c)) for c in CLIENT_CANDIDATES}
+    # 4. 客户端可用性（与 models 命令共用探测；doctor 输出沿用 ✓/✗ 文案）
+    clients = {item["client"]: item["installed"] for item in probe_clients()}
     if not any(clients.values()):
         notes.append("PATH 中未发现任何已知客户端 CLI；可使用 manual adapter")
 
@@ -432,10 +529,159 @@ def cmd_watch(args: argparse.Namespace) -> int:
             print("[runner] 已调度: %s" % json.dumps(data, ensure_ascii=False))
         elif kind == "terminal":
             print("[runner] 任务到达终态: %s，停止。" % data.get("status"))
+            print(format_report(build_report(args.task_dir)))
 
     print("[runner] 监听 %s（每 %ds 全量校验）" % (args.task_dir, args.interval))
     runner.run(on_event=on_event)
     return 0
+
+
+def build_report(task_dir: str) -> Dict[str, Any]:
+    """聚合事件链：各 agent 贡献、最新评价与遗留 TODO。只读，不发布事件。"""
+    store = TaskStore(task_dir)
+    report = store.validate()
+    control = report.control or {}
+    events = report.events
+
+    agents: Dict[str, Dict[str, Any]] = {}
+    order: List[str] = []
+    for e in events:
+        actor = e.get("actor") or {}
+        key = "%s/%s" % (actor.get("role", "?"), actor.get("instance_id", "?"))
+        if key not in agents:
+            order.append(key)
+            agents[key] = {
+                "role": actor.get("role"),
+                "instance_id": actor.get("instance_id"),
+                "model": actor.get("model"),
+                "event_counts": {},
+                "artifacts": [],
+                "latest_review": None,
+            }
+        entry = agents[key]
+        etype = e.get("type", "?")
+        entry["event_counts"][etype] = entry["event_counts"].get(etype, 0) + 1
+        for ref in e.get("artifacts") or []:
+            if isinstance(ref, dict):
+                entry["artifacts"].append(
+                    {"path": ref.get("path"), "version": ref.get("version", 1)})
+        payload = e.get("payload") or {}
+        if etype in ("REVIEW_APPROVED", "REVISION_REQUIRED") and "score" in payload:
+            entry["latest_review"] = {
+                "type": etype,
+                "score": payload.get("score"),
+                "blocking_issues": payload.get("blocking_issues"),
+            }
+
+    evaluation = None
+    for e in reversed(events):
+        if e.get("type") in ("REVIEW_APPROVED", "REVISION_REQUIRED"):
+            payload = e.get("payload") or {}
+            evaluation = {
+                "type": e.get("type"),
+                "reviewer": (e.get("actor") or {}).get("role"),
+                "score": payload.get("score"),
+                "blocking_issues": payload.get("blocking_issues"),
+                "issues": payload.get("issues") or [],
+                "self_review": payload.get("self_review") is True,
+            }
+            break
+
+    approved = any(e.get("type") == "REVIEW_APPROVED" for e in events)
+    todos: List[Dict[str, Any]] = []
+    for idx, e in enumerate(events):
+        etype = e.get("type")
+        payload = e.get("payload") or {}
+        if etype == "REVISION_REQUIRED":
+            cycle = e.get("revision_cycle", 0)
+            superseded = approved or any(
+                later.get("revision_cycle", 0) > cycle for later in events[idx + 1:])
+            if not superseded:
+                for issue in payload.get("issues") or []:
+                    todos.append({"source": "REVISION_REQUIRED", "todo": _issue_text(issue)})
+                if not payload.get("issues"):
+                    todos.append({"source": "REVISION_REQUIRED",
+                                  "todo": e.get("summary") or "返工事项未列明"})
+        elif etype in ("TASK_BLOCKED", "TASK_FAILED"):
+            todos.append({"source": etype,
+                          "todo": payload.get("reason") or e.get("summary") or "原因未列明"})
+    if approved and control.get("workflow", {}).get("mode") == "solo":
+        todos.append({"source": "solo-approval",
+                      "todo": "solo 临时批准（自审），待独立第二模型复核"})
+
+    return {
+        "task_dir": task_dir,
+        "task_id": control.get("task", {}).get("id") or os.path.basename(task_dir),
+        "title": control.get("task", {}).get("title"),
+        "final_status": report.final_status,
+        "valid": report.ok,
+        "event_count": len(events),
+        "agents": [agents[k] for k in order],
+        "evaluation": evaluation,
+        "todos": todos,
+    }
+
+
+def _issue_text(issue: Any) -> str:
+    if isinstance(issue, dict):
+        for key in ("description", "message", "title", "summary"):
+            if issue.get(key):
+                return str(issue[key])
+        return json.dumps(issue, ensure_ascii=False)
+    return str(issue)
+
+
+def format_report(data: Dict[str, Any]) -> str:
+    lines: List[str] = []
+    lines.append("任务报告: %s（%s）" % (data.get("task_id"), data.get("task_dir")))
+    lines.append("状态: %s | 事件数: %d | 链校验: %s" % (
+        data.get("final_status"), data.get("event_count"),
+        "通过" if data.get("valid") else "存在错误"))
+    if data.get("title"):
+        lines.append("标题: %s" % data["title"])
+    lines.append("")
+    lines.append("== 各 Agent 贡献 ==")
+    for agent in data.get("agents", []):
+        events_desc = ", ".join("%s×%d" % (t, n)
+                                for t, n in (agent.get("event_counts") or {}).items())
+        arts = agent.get("artifacts") or []
+        lines.append("- %s（model=%s）: %s；产物 %d 件%s" % (
+            agent.get("role"), agent.get("model"),
+            events_desc or "无事件", len(arts),
+            "（%s）" % ", ".join(a["path"] for a in arts) if arts else ""))
+        review = agent.get("latest_review")
+        if review:
+            lines.append("    最新评审: %s score=%s blocking_issues=%s" % (
+                review["type"], review["score"], review["blocking_issues"]))
+    lines.append("")
+    lines.append("== 任务评价 ==")
+    ev = data.get("evaluation")
+    if ev is None:
+        lines.append("- 暂无评审事件")
+    else:
+        self_note = "，self_review（临时批准）" if ev.get("self_review") else ""
+        lines.append("- %s by %s: score=%s blocking_issues=%s%s" % (
+            ev["type"], ev.get("reviewer"), ev.get("score"),
+            ev.get("blocking_issues"), self_note))
+        for issue in ev.get("issues") or []:
+            lines.append("    问题: %s" % _issue_text(issue))
+    lines.append("")
+    lines.append("== TODO ==")
+    todos = data.get("todos") or []
+    if not todos:
+        lines.append("- 无遗留事项")
+    for item in todos:
+        lines.append("- [%s] %s" % (item.get("source"), item.get("todo")))
+    return "\n".join(lines)
+
+
+def cmd_report(args: argparse.Namespace) -> int:
+    data = build_report(args.task_dir)
+    if args.json:
+        _out(data, True)
+    else:
+        print(format_report(data))
+    return 0 if data["valid"] else 1
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -462,9 +708,23 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--reviewer", default="A")
     sp.add_argument("--solo", action="store_true",
                     help="单会话模式：一个角色扮演全部职责（mode=solo，REVIEW_APPROVED 需自证证据）")
+    sp.add_argument("--effort", choices=list(VALID_EFFORTS), default="medium",
+                    help="全局模型档位（默认 medium，可用 --role-config 按角色覆盖）")
+    sp.add_argument("--thinking", choices=list(VALID_THINKING), default="off",
+                    help="是否开启 thinking（默认 off）")
+    sp.add_argument("--permission-mode", choices=list(VALID_PERMISSION_MODES),
+                    default="yolo", dest="permission_mode",
+                    help="权限模式（默认 yolo，自动执行无需确认；confirm 需人工确认）")
+    sp.add_argument("--role-config", action="append", default=[], dest="role_config",
+                    metavar="ROLE:KEY=VALUE",
+                    help="按角色覆盖档位，键为 effort/thinking/model，可多次，如 A:effort=high")
     sp.add_argument("--tasks-dir", default="tasks")
     add_actor_flags(sp, "coordinator")
     sp.set_defaults(func=cmd_init)
+
+    sp = sub.add_parser("models", help="探测已安装的模型客户端")
+    sp.add_argument("--json", action="store_true")
+    sp.set_defaults(func=cmd_models)
 
     sp = sub.add_parser("doctor", help="综合诊断")
     sp.add_argument("task_dir")
@@ -521,6 +781,11 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("task_dir")
     sp.add_argument("--json", action="store_true")
     sp.set_defaults(func=cmd_validate)
+
+    sp = sub.add_parser("report", help="任务报告：各 agent 贡献、评价与 TODO")
+    sp.add_argument("task_dir")
+    sp.add_argument("--json", action="store_true")
+    sp.set_defaults(func=cmd_report)
 
     sp = sub.add_parser("watch", help="Runner 监听调度")
     sp.add_argument("task_dir")

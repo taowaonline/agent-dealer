@@ -65,7 +65,8 @@ TRANSITIONS: Dict[str, set] = {
 }
 
 TERMINAL = {"APPROVED", "BLOCKED", "FAILED", "CANCELLED"}
-PLACEHOLDER_MODEL_TOKENS = ("configured", "placeholder", "todo", "tbd", "xxx", "unknown")
+PLACEHOLDER_MODEL_TOKENS = ("configured", "configurable", "placeholder", "todo",
+                            "tbd", "xxx", "unknown")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 ISO_RE = re.compile(
     r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$"
@@ -181,6 +182,24 @@ def _section_map(text: str, name: str) -> Dict[str, Any]:
     return result
 
 
+def _parse_agents(text: str) -> Dict[str, Dict[str, Any]]:
+    match = re.search(r"(?m)^agents:\s*\n((?:^[ \t]+[^\n]*(?:\n|$))*)", text)
+    if not match:
+        return {}
+    detail: Dict[str, Dict[str, Any]] = {}
+    current: Optional[str] = None
+    for line in match.group(1).splitlines():
+        role = re.match(r"^  ([A-Za-z_][A-Za-z0-9_-]*):\s*$", line)
+        if role:
+            current = role.group(1)
+            detail.setdefault(current, {})
+            continue
+        field = re.match(r"^    ([A-Za-z_][A-Za-z0-9_-]*):\s*(.*?)\s*$", line)
+        if field and current:
+            detail[current][field.group(1)] = _parse_scalar(field.group(2))
+    return detail
+
+
 def parse_control(task_dir: str, report: ValidationReport) -> Dict[str, Any]:
     path = os.path.join(task_dir, "control.md")
     if not os.path.isfile(path):
@@ -205,6 +224,7 @@ def parse_control(task_dir: str, report: ValidationReport) -> Dict[str, Any]:
         "rubric": _section_map(text, "rubric"),
         "permissions": _section_map(text, "permissions"),
         "agent_roles": agent_roles,
+        "agents_detail": _parse_agents(text),
     }
     if not agent_roles:
         report.error("control-agents-missing",
@@ -240,6 +260,17 @@ def parse_control(task_dir: str, report: ValidationReport) -> Dict[str, Any]:
     if rubric and (not all(isinstance(v, int) and not isinstance(v, bool) for v in rubric.values())
                    or sum(rubric.values()) != 100):
         report.error("control-rubric", "control.md rubric 权重必须全部为整数且总和为 100")
+    for role, detail in control["agents_detail"].items():
+        if "effort" in detail and detail["effort"] not in ("low", "medium", "high", "max"):
+            report.error("control-effort-invalid",
+                         "control.md agents.%s.effort 必须为 low/medium/high/max" % role)
+        if "thinking" in detail and detail["thinking"] not in ("on", "off"):
+            report.error("control-thinking-invalid",
+                         "control.md agents.%s.thinking 必须为 on/off" % role)
+    if ("permission_mode" in control["workflow"]
+            and control["workflow"]["permission_mode"] not in ("yolo", "confirm")):
+        report.error("control-permission-mode-invalid",
+                     "control.md workflow.permission_mode 必须为 yolo/confirm")
     return control
 
 # ---------------------------------------------------------------- 字段层

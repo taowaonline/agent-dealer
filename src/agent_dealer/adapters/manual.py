@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 import sys
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from .base import Adapter, AdapterResult
 
@@ -19,7 +19,8 @@ class ManualAdapter(Adapter):
         self.notified: list = []
 
     def start(self, task_dir: str, role: str, prompt: str,
-              event: Dict[str, Any]) -> AdapterResult:
+              event: Dict[str, Any],
+              config: Optional[Dict[str, str]] = None) -> AdapterResult:
         run_id = "manual-%s" % event.get("event_id", "unknown")
         text = "\n".join([
             "=" * 60,

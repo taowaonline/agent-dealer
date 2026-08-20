@@ -2,6 +2,24 @@
 
 本项目遵循语义版本（SemVer）。
 
+## [0.4.0] - 2026-08-20
+
+### 新增
+
+- `agent_dealer models`：探测本机已安装的模型客户端 CLI 及版本（`--json` 机器可读；
+  探测失败降级为 `unknown`，不阻塞）。`doctor` 复用同一探测，输出文案不变。
+- 协同 Agent 档位选择：`init --effort {low,medium,high,max}`、`--thinking {on,off}`、
+  `--permission-mode {yolo,confirm}`（默认 yolo，自动执行无需确认）、
+  `--role-config 角色:键=值`（键：effort/thinking/model）按角色覆盖；全部写入 control.md。
+- validator 新增 `agents_detail` 解析与枚举校验（`control-effort-invalid` /
+  `control-thinking-invalid` / `control-permission-mode-invalid`）；字段可选，旧 control.md 零影响。
+- Runner/command adapter 档位注入：argv 占位符 `{model} {effort} {thinking} {permission_mode}`
+  与环境变量 `MMAC_MODEL` / `MMAC_EFFORT` / `MMAC_THINKING` / `MMAC_PERMISSION_MODE`；
+  唤醒提示词附带档位行；占位 model 不注入。
+- `agent_dealer report`：任务报告——各 agent 的事件/产物贡献、最新评审评分与问题、
+  遗留 TODO（未消化的 REVISION_REQUIRED 问题、solo 临时批准待独立复核、BLOCKED 原因）；
+  `watch` 到达终态时自动打印报告摘要。
+
 ## [0.3.0] - 2026-08-20
 
 ### 新增

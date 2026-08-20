@@ -176,5 +176,177 @@ class PublishTests(CliTestBase):
         self.assertEqual(code, 1)
 
 
+class InitTierTests(CliTestBase):
+    def _control(self, task_id):
+        with open(os.path.join("tasks", task_id, "control.md")) as fh:
+            return fh.read()
+
+    def test_init_tiers_written_to_control(self):
+        code, out = self.run_cli(
+            "init", "task-tier-001", "--title", "x", "--model", "m1",
+            "--effort", "max", "--thinking", "on", "--permission-mode", "confirm",
+            "--role-config", "A:effort=high", "--role-config", "A:model=gpt-5.6-luna")
+        self.assertEqual(code, 0, out)
+        control = self._control("task-tier-001")
+        self.assertIn("permission_mode: confirm", control)
+        self.assertIn("model: gpt-5.6-luna", control)
+        self.assertIn("effort: high", control)   # A 角色 role-config 覆盖
+        self.assertIn("effort: max", control)    # B/C 继承全局默认
+        self.assertIn("thinking: on", control)
+        # 新字段落盘后链校验零错误
+        code, out = self.run_cli("validate", "tasks/task-tier-001")
+        self.assertEqual(code, 0, out)
+
+    def test_init_defaults_are_medium_off_yolo(self):
+        task_dir = self.init_task()  # 不带任何新参数
+        control = self._control("task-cli-001")
+        self.assertIn("effort: medium", control)
+        self.assertIn("thinking: off", control)
+        self.assertIn("permission_mode: yolo", control)
+        code, out = self.run_cli("validate", task_dir)
+        self.assertEqual(code, 0, out)
+
+    def test_solo_init_accepts_only_solo_role_config(self):
+        code, out = self.run_cli(
+            "init", "task-solo-tier", "--title", "x", "--model", "m1",
+            "--solo", "--effort", "high", "--role-config", "B:thinking=on")
+        self.assertEqual(code, 0, out)
+        control = self._control("task-solo-tier")
+        self.assertIn("mode: solo", control)
+        self.assertIn("effort: high", control)
+        self.assertIn("thinking: on", control)
+        # solo 只有一个角色：A 不在有效角色集合
+        code, out = self.run_cli(
+            "init", "task-solo-bad", "--title", "x", "--model", "m1",
+            "--solo", "--role-config", "A:effort=high")
+        self.assertEqual(code, 1)
+        self.assertIn("MMAC-E105_INVALID_CONTROL", out)
+
+    def test_role_config_rejects_bad_inputs(self):
+        cases = [
+            ("bad-format", 1, "MMAC-E105_INVALID_CONTROL"),
+            ("Z:effort=high", 1, "MMAC-E105_INVALID_CONTROL"),
+            ("A:foo=1", 1, "MMAC-E105_INVALID_CONTROL"),
+            ("A:effort=ultra", 1, "MMAC-E105_INVALID_CONTROL"),
+            ("A:thinking=maybe", 1, "MMAC-E105_INVALID_CONTROL"),
+            ("A:model=todo", 1, "MMAC-E202_PLACEHOLDER_MODEL"),
+        ]
+        for i, (cfg, want_code, want_err) in enumerate(cases):
+            code, out = self.run_cli(
+                "init", "task-role-bad-%d" % i, "--title", "x",
+                "--model", "m1", "--role-config", cfg)
+            self.assertEqual(code, want_code, (cfg, out))
+            self.assertIn(want_err, out, cfg)
+
+
+class ReportTests(CliTestBase):
+    def _drive_to_review(self, task_id):
+        """A 规划、B 执行的完整合法链至 REVIEW_STARTED，返回 (task_dir, review 产物)。"""
+        from helpers import make_task, append_event, make_artifact, make_event
+        task_dir = make_task(self.root, task_id)
+        append_event(task_dir, make_event(task_id, "PLANNING_STARTED", "A",
+                                          "evt-0001", "evt-0002", caused_by="evt-0001"))
+        plan = make_artifact(task_dir, "artifacts/plans/plan-v001.md")
+        append_event(task_dir, make_event(
+            task_id, "PLAN_READY", "A", "evt-0002", "evt-0003",
+            caused_by="evt-0001", artifacts=[plan], recipient="B"))
+        append_event(task_dir, make_event(task_id, "TASK_CLAIMED", "B",
+                                          "evt-0003", "evt-0004", caused_by="evt-0003"))
+        append_event(task_dir, make_event(task_id, "EXECUTION_STARTED", "B",
+                                          "evt-0004", "evt-0005", caused_by="evt-0004"))
+        ex = make_artifact(task_dir, "artifacts/executions/execution-b-v001.md")
+        append_event(task_dir, make_event(
+            task_id, "WORK_READY", "B", "evt-0005", "evt-0006",
+            caused_by="evt-0003", artifacts=[ex]))
+        append_event(task_dir, make_event(task_id, "REVIEW_STARTED", "A",
+                                          "evt-0006", "evt-0007", caused_by="evt-0006"))
+        return task_dir, make_artifact(task_dir, "artifacts/reviews/review-v001.md")
+
+    def _full_chain(self, task_id="task-report-001"):
+        from helpers import append_event, make_event, review_payload
+        task_dir, review = self._drive_to_review(task_id)
+        append_event(task_dir, make_event(
+            task_id, "REVIEW_APPROVED", "A", "evt-0007", "evt-0008",
+            caused_by="evt-0007", artifacts=[review],
+            payload=review_payload(score=95)))
+        return task_dir
+
+    def test_report_json_aggregates_agents_and_evaluation(self):
+        task_dir = self._full_chain()
+        code, out = self.run_cli("report", task_dir, "--json")
+        self.assertEqual(code, 0, out)
+        data = json.loads(out)
+        self.assertEqual(data["final_status"], "APPROVED")
+        self.assertEqual(data["event_count"], 8)
+        by_role = {a["role"]: a for a in data["agents"]}
+        self.assertEqual(by_role["A"]["event_counts"]["PLANNING_STARTED"], 1)
+        self.assertEqual(by_role["A"]["event_counts"]["REVIEW_APPROVED"], 1)
+        self.assertEqual(by_role["B"]["event_counts"]["TASK_CLAIMED"], 1)
+        self.assertEqual(
+            [a["path"] for a in by_role["A"]["artifacts"]],
+            ["artifacts/plans/plan-v001.md", "artifacts/reviews/review-v001.md"])
+        self.assertEqual(by_role["A"]["latest_review"]["score"], 95)
+        self.assertEqual(data["evaluation"]["type"], "REVIEW_APPROVED")
+        self.assertEqual(data["evaluation"]["score"], 95)
+        self.assertFalse(data["evaluation"]["self_review"])
+        self.assertEqual(data["todos"], [])
+
+    def test_report_text_output(self):
+        task_dir = self._full_chain()
+        code, out = self.run_cli("report", task_dir)
+        self.assertEqual(code, 0, out)
+        self.assertIn("各 Agent 贡献", out)
+        self.assertIn("任务评价", out)
+        self.assertIn("REVIEW_APPROVED by A: score=95", out)
+        self.assertIn("TODO", out)
+
+    def test_report_lists_unresolved_revision_issues(self):
+        from helpers import append_event, make_event, review_payload
+        task_dir, review = self._drive_to_review("task-report-rev")
+        payload = {**review_payload(score=60, blocking=2),
+                   "issues": ["测试缺失", {"description": "文档未更新"}]}
+        append_event(task_dir, make_event(
+            "task-report-rev", "REVISION_REQUIRED", "A", "evt-0007", "evt-0008",
+            caused_by="evt-0007", artifacts=[review], payload=payload))
+        code, out = self.run_cli("report", task_dir, "--json")
+        self.assertEqual(code, 0, out)
+        data = json.loads(out)
+        self.assertEqual(data["evaluation"]["type"], "REVISION_REQUIRED")
+        todos = [t["todo"] for t in data["todos"]]
+        self.assertIn("测试缺失", todos)
+        self.assertIn("文档未更新", todos)
+
+    def test_report_flags_solo_temporary_approval(self):
+        from helpers import (append_event, make_event, make_artifact,
+                             review_payload)
+        task_dir, _ = self._drive_to_review("task-report-solo")
+        # 切 solo：B 全链自审需自证证据
+        path = os.path.join(task_dir, "control.md")
+        with open(path) as fh:
+            text = fh.read()
+        with open(path, "w") as fh:
+            fh.write(text.replace("workflow:\n", "workflow:\n  mode: solo\n", 1))
+        review = make_artifact(task_dir, "artifacts/reviews/review-v002.md")
+        payload = {**review_payload(score=95), "self_review": True,
+                   "reproduced_commands": ["agent_dealer validate tasks/x"]}
+        append_event(task_dir, make_event(
+            "task-report-solo", "REVIEW_APPROVED", "B", "evt-0007", "evt-0008",
+            caused_by="evt-0007", artifacts=[review], payload=payload))
+        code, out = self.run_cli("report", task_dir, "--json")
+        self.assertEqual(code, 0, out)
+        data = json.loads(out)
+        self.assertTrue(data["evaluation"]["self_review"])
+        self.assertTrue(any("独立" in t["todo"] for t in data["todos"]))
+
+    def test_report_on_fresh_task(self):
+        task_dir = self.init_task()
+        code, out = self.run_cli("report", task_dir, "--json")
+        self.assertEqual(code, 0, out)
+        data = json.loads(out)
+        self.assertEqual(data["final_status"], "CREATED")
+        self.assertEqual(data["agents"][0]["role"], "coordinator")
+        self.assertIsNone(data["evaluation"])
+
+
 if __name__ == "__main__":
     unittest.main()

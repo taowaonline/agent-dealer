@@ -26,8 +26,14 @@ agent_dealer --version
 ## 五分钟 Quick Start
 
 ```bash
-# 1. 创建任务（目录、control.md、TASK_CREATED 事件一步到位）
-agent_dealer init task-demo-001 --title "我的第一个协作任务" --model kimi-k2.5
+# 0. 探测本机已安装的模型客户端及版本
+agent_dealer models
+
+# 1. 创建任务（目录、control.md、TASK_CREATED 事件一步到位）；
+#    档位：--effort low|medium|high|max、--thinking on|off、
+#    --permission-mode yolo|confirm（默认 yolo）、--role-config 角色:键=值 按角色覆盖
+agent_dealer init task-demo-001 --title "我的第一个协作任务" --model kimi-k2.5 \
+  --effort high --thinking on --role-config A:model=gpt-5.6-luna
 
 # 2. 诊断任务健康度
 agent_dealer doctor tasks/task-demo-001
@@ -41,6 +47,9 @@ agent_dealer publish --dry-run tasks/task-demo-001 tasks/task-demo-001/tmp/e.jso
 
 # 5. 原子发布（锁 + 预校验 + 追加 + 复核，一次完成）
 agent_dealer publish tasks/task-demo-001 tasks/task-demo-001/tmp/e.json --instance-id my-session
+
+# 6. 任务报告：各 agent 贡献、评审评价与遗留 TODO（--json 机器可读）
+agent_dealer report tasks/task-demo-001
 ```
 
 一个从 `TASK_CREATED` 到 `REVIEW_APPROVED` 全部校验通过的完整样例在 [`examples/quickstart`](examples/quickstart)：

@@ -17,6 +17,20 @@
 - 无人值守接力：`claude --permission-mode acceptEdits`（仍有高危操作拦截）。
 - 发布事件一律使用 `agent_dealer publish`，不要手工编辑 coordination.md。
 
+## Runner adapter 示例
+
+`adapters.json` 支持 `{task_dir} {role} {model} {effort} {thinking} {permission_mode}`
+占位符，档位值来自任务 control.md（init 的 `--effort/--thinking/--permission-mode/--role-config`）：
+
+```json
+{
+  "A": {"type": "command", "argv": ["claude", "--model", "{model}", "--permission-mode", "acceptEdits", "--print", "{task_dir}"]},
+  "B": {"type": "command", "argv": ["claude", "--model", "{model}", "--permission-mode", "acceptEdits", "--print", "{task_dir}"]}
+}
+```
+
+同时注入环境变量 `MMAC_MODEL` / `MMAC_EFFORT` / `MMAC_THINKING` / `MMAC_PERMISSION_MODE`。
+
 ## 恢复
 
 新 session 不依赖聊天上下文：从磁盘读取 control.md + coordination.md 即可恢复全部状态。

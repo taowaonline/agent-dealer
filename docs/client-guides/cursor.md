@@ -11,3 +11,9 @@ Cursor 中的模型没有稳定的独立 CLI，推荐使用 **manual adapter**�
 
 当前兼容性基于"能读写目录 + 能运行 Python 即可参与"的协议设计；
 Cursor 专属适配器与自动化启动在路线图中（见 docs/full-assessment-and-95-plan-2026-08-11.md P2/P3）。
+
+## Runner adapter 占位符
+
+manual adapter 不启动进程，档位不注入；若改用 command adapter，argv 支持
+`{task_dir} {role} {model} {effort} {thinking} {permission_mode}` 占位符，并注入
+`MMAC_MODEL` / `MMAC_EFFORT` / `MMAC_THINKING` / `MMAC_PERMISSION_MODE` 环境变量。

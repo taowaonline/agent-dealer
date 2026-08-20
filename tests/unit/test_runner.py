@@ -162,5 +162,128 @@ class RunnerLogicTests(TaskTestCase):
         self.assertIn("evt-0003", prompt)
 
 
+class TierConfigTests(TaskTestCase):
+    """0.4.0 档位注入：control.md agents_detail/workflow → adapter config/环境/prompt。"""
+
+    def _plan_ready_event(self):
+        append_event(self.task_dir, make_event(
+            self.task_id, "PLANNING_STARTED", "A", "evt-0001", "evt-0002", caused_by="evt-0001"))
+        art = make_artifact(self.task_dir, "artifacts/plans/plan-v001.md")
+        ev = make_event(self.task_id, "PLAN_READY", "A", "evt-0002", "evt-0003",
+                        caused_by="evt-0001", artifacts=[art], recipient="B")
+        append_event(self.task_dir, ev)
+        return ev
+
+    def _add_tiers(self):
+        path = os.path.join(self.task_dir, "control.md")
+        with open(path, encoding="utf-8") as fh:
+            text = fh.read()
+        text = text.replace(
+            "    model: kimi-k2.5\n",
+            "    model: kimi-k2.5\n    effort: high\n    thinking: on\n", 1)
+        text = text.replace(
+            "  planning_agent: A\n",
+            "  planning_agent: A\n  permission_mode: confirm\n", 1)
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(text)
+
+    def test_role_config_reads_control(self):
+        self._add_tiers()
+        runner, _ = self._runner_with_adapters()
+        cfg = runner.role_config("B")
+        self.assertEqual(cfg, {"model": "kimi-k2.5", "effort": "high",
+                               "thinking": "on", "permission_mode": "confirm"})
+
+    def test_role_config_defaults(self):
+        runner, _ = self._runner_with_adapters()
+        cfg = runner.role_config("A")
+        self.assertEqual(cfg, {"model": "gpt-5.6-luna", "effort": "medium",
+                               "thinking": "off", "permission_mode": "yolo"})
+
+    def test_role_config_blanks_placeholder_model(self):
+        # init 默认写 model: configurable——注入前必须置空，不传占位符给客户端
+        path = os.path.join(self.task_dir, "control.md")
+        with open(path, encoding="utf-8") as fh:
+            text = fh.read()
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(text.replace("model: gpt-5.6-luna", "model: configurable", 1))
+        runner, _ = self._runner_with_adapters()
+        self.assertEqual(runner.role_config("A")["model"], "")
+
+    def test_build_prompt_includes_tier_line(self):
+        self._add_tiers()
+        ev = self._plan_ready_event()
+        runner, _ = self._runner_with_adapters()
+        prompt = runner.build_prompt(ev, runner.role_config("B"))
+        self.assertIn("model=kimi-k2.5", prompt)
+        self.assertIn("effort=high", prompt)
+        self.assertIn("thinking=on", prompt)
+        self.assertIn("permission_mode=confirm", prompt)
+
+    def test_dispatch_passes_config_to_adapter(self):
+        self._add_tiers()
+        self._plan_ready_event()
+        captured = {}
+
+        class SpyAdapter:
+            name = "spy"
+
+            def start(self, task_dir, role, prompt, event, config=None):
+                captured["config"] = config
+                from agent_dealer.adapters.base import AdapterResult
+                return AdapterResult("spy-1", "notified")
+
+        runner = Runner(self.task_dir, {"B": SpyAdapter()}, poll_interval=0.01)
+        result = runner.run_once()
+        self.assertEqual(result.state, "notified")
+        self.assertEqual(captured["config"]["effort"], "high")
+        self.assertEqual(captured["config"]["model"], "kimi-k2.5")
+
+    def _runner_with_adapters(self):
+        buf = io.StringIO()
+        adapters = {"A": ManualAdapter(stream=buf), "B": ManualAdapter(stream=buf)}
+        return Runner(self.task_dir, adapters, poll_interval=0.01), buf
+
+
+class CommandAdapterTierTests(unittest.TestCase):
+    def test_build_command_tier_placeholders(self):
+        a = CommandAdapter(["run", "--model", "{model}", "--effort", "{effort}",
+                            "--thinking", "{thinking}", "--mode", "{permission_mode}"])
+        cmd = a.build_command("/t", "B", "p", {"model": "kimi-k2.5", "effort": "high",
+                                               "thinking": "on", "permission_mode": "yolo"})
+        self.assertEqual(cmd, ["run", "--model", "kimi-k2.5", "--effort", "high",
+                               "--thinking", "on", "--mode", "yolo"])
+
+    def test_build_command_placeholder_blank_without_config(self):
+        a = CommandAdapter(["run", "{model}"])
+        self.assertEqual(a.build_command("/t", "B", "p", None), ["run", ""])
+
+    def test_start_injects_mmac_env(self):
+        with tempfile.TemporaryDirectory() as task_dir:
+            a = CommandAdapter(
+                [sys.executable, "-c",
+                 "import os,sys;print(os.environ['MMAC_EFFORT'],"
+                 "os.environ['MMAC_MODEL'],os.environ['MMAC_PERMISSION_MODE'])"])
+            r = a.start(task_dir, "B", "p", {"event_id": "e"},
+                        config={"model": "kimi-k2.5", "effort": "high",
+                                "thinking": "on", "permission_mode": "yolo"})
+            self.assertEqual(r.state, "started")
+            import time
+            for _ in range(50):
+                if a.poll(r.run_id) != "running":
+                    break
+                time.sleep(0.05)
+            log = os.path.join(task_dir, "tmp", "adapter-%s.log" % r.run_id)
+            with open(log) as fh:
+                self.assertIn("high kimi-k2.5 yolo", fh.read())
+
+    def test_manual_adapter_accepts_config_kwarg(self):
+        buf = io.StringIO()
+        adapter = ManualAdapter(stream=buf)
+        result = adapter.start("/t", "B", "p", {"event_id": "e1"},
+                               config={"effort": "high"})
+        self.assertEqual(result.state, "notified")
+
+
 if __name__ == "__main__":
     unittest.main()

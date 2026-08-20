@@ -14,3 +14,9 @@ codex -a never -s workspace-write   # 工作区可写、免逐条审批
   这正是 `agent_dealer watch` 的用武之地。
 - `actor.model` 填真实模型 ID（如 `gpt-5.6-luna`），不要用占位符。
 - 审查者角色请使用高推理档位；低成本模型适合执行角色。
+
+## Runner adapter 占位符
+
+command adapter 的 argv 支持 `{task_dir} {role} {model} {effort} {thinking} {permission_mode}`
+占位符（档位来自任务 control.md），并注入 `MMAC_MODEL` / `MMAC_EFFORT` /
+`MMAC_THINKING` / `MMAC_PERMISSION_MODE` 环境变量；原生档位参数以 Codex CLI 文档为准。
