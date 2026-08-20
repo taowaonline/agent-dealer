@@ -2,6 +2,10 @@
 
 [![npm version](https://img.shields.io/npm/v/agent-dealer-cli)](https://www.npmjs.com/package/agent-dealer-cli)
 
+**简体中文** · [English](#english)
+
+<a id="简体中文"></a>
+
 厂商无关的跨模型 Agent 协作运行时。Claude Code、Codex、Kimi、Cursor 或本地模型不需要共享厂商会话，只通过共享目录里的结构化事件、版本化产物和 SHA-256 哈希即可完成规划、执行、审查与返工。
 
 **当前状态：Developer Preview（v0.5.0）。** 默认威胁模型为可信本地客户端（见 [SECURITY.md](SECURITY.md)）。
@@ -87,6 +91,8 @@ CREATED → PLANNING → PLAN_READY → CLAIMED → EXECUTING → WORK_READY →
 | Claude Code | [docs/client-guides/claude-code.md](docs/client-guides/claude-code.md) |
 | Codex | [docs/client-guides/codex.md](docs/client-guides/codex.md) |
 | Kimi | [docs/client-guides/kimi.md](docs/client-guides/kimi.md) |
+| DeepSeek | [docs/client-guides/deepseek.md](docs/client-guides/deepseek.md) |
+| z.ai (GLM) | [docs/client-guides/zai.md](docs/client-guides/zai.md) |
 | Cursor | [docs/client-guides/cursor.md](docs/client-guides/cursor.md) |
 
 手动模式不需要为本项目配置 API key——各客户端使用自己的登录状态。
@@ -132,4 +138,145 @@ docs/                      协议、安全、客户端指南
 references/                事件 schema、状态机、rubric 速查
 tasks/                     真实协作任务工作区
 evals/                     skill-up Agent 行为评测
+```
+
+---
+
+# English
+
+**English** · [简体中文](#简体中文)
+
+A vendor-neutral runtime for cross-model agent collaboration. Claude Code, Codex, Kimi, Cursor, or local models never share a vendor session: they plan, execute, review, and rework purely through structured events, versioned artifacts, and SHA-256 hashes in a shared directory.
+
+**Status: Developer Preview (v0.5.0).** The default threat model is trusted local clients (see [SECURITY.md](SECURITY.md)).
+
+## Installation
+
+One line via npm (a zero-dependency Node wrapper that locates system Python ≥ 3.9 — no pip needed):
+
+```bash
+npm install -g agent-dealer-cli
+agent-dealer-cli --version
+```
+
+Or install from source (zero third-party runtime dependencies, Python ≥ 3.9):
+
+```bash
+python -m venv .venv && .venv/bin/pip install -e .
+```
+
+To use the command from any directory, other terminals, and new sessions, run once:
+
+```bash
+./scripts/install-global.sh
+agent-dealer-cli --version
+```
+
+This installs to `~/.local/share/agent_dealer/venv` and creates the primary command
+`agent-dealer-cli` in `~/.local/bin`, keeping the legacy aliases `agent_dealer` and `collab`.
+If your shell cannot find the command, add `~/.local/bin` to your `PATH`.
+Re-run the script after updating the code to upgrade the global command.
+
+## Five-minute Quick Start
+
+```bash
+# 0. Probe installed model clients and available model tiers (e.g. gpt-5.6-sol high, glm-5.3 max)
+agent-dealer-cli models          # first run: agent-dealer-cli models --init opens the interactive wizard
+
+# 1. Create a task (directory, control.md, and the TASK_CREATED event in one step);
+#    tiers: --effort low|medium|high|max, --thinking on|off,
+#    --permission-mode yolo|confirm (default yolo), --role-config ROLE:key=value per-role overrides
+agent-dealer-cli init task-demo-001 --title "My first collaboration task" --model kimi-k2.5 \
+  --effort high --thinking on --role-config A:model=gpt-5.6-luna
+
+# 2. Check task health
+agent-dealer-cli doctor tasks/task-demo-001
+
+# 3. See who should act next
+agent-dealer-cli next tasks/task-demo-001
+
+# 4. Prepare and pre-validate an event (PLANNING_STARTED)
+agent-dealer-cli event prepare tasks/task-demo-001 --type PLANNING_STARTED --role A --model gpt-5.6-luna --out tasks/task-demo-001/tmp/e.json
+agent-dealer-cli publish --dry-run tasks/task-demo-001 tasks/task-demo-001/tmp/e.json
+
+# 5. Atomic publish (lock + pre-validation + append + re-check, all in one)
+agent-dealer-cli publish tasks/task-demo-001 tasks/task-demo-001/tmp/e.json --instance-id my-session
+
+# 6. Task report: per-agent contributions, review verdicts, and leftover TODOs (--json for machine output)
+agent-dealer-cli report tasks/task-demo-001
+```
+
+A complete sample flowing from `TASK_CREATED` to `REVIEW_APPROVED` with every check passing lives in [`examples/quickstart`](examples/quickstart):
+
+```bash
+agent-dealer-cli doctor examples/quickstart
+```
+
+## Roles & Workflow
+
+- **A** — architect & reviewer: planning, task decomposition, strict review (self-ratings from executors are never accepted).
+- **B** — general executor: code, tests, documentation.
+- **C** — visual & multimodal executor: image and multimodal tasks.
+
+```text
+CREATED → PLANNING → PLAN_READY → CLAIMED → EXECUTING → WORK_READY → REVIEWING
+        → APPROVED (terminal) / REVISION_REQUIRED (≤3 rework rounds) / BLOCKED
+```
+
+Full protocol: [`SKILL.md`](SKILL.md) (required reading for agents) and [`docs/protocol.md`](docs/protocol.md) (human reference).
+
+## Client Guides
+
+| Client | Guide |
+| --- | --- |
+| Claude Code | [docs/client-guides/claude-code.md](docs/client-guides/claude-code.md) |
+| Codex | [docs/client-guides/codex.md](docs/client-guides/codex.md) |
+| Kimi | [docs/client-guides/kimi.md](docs/client-guides/kimi.md) |
+| DeepSeek | [docs/client-guides/deepseek.md](docs/client-guides/deepseek.md) |
+| z.ai (GLM) | [docs/client-guides/zai.md](docs/client-guides/zai.md) |
+| Cursor | [docs/client-guides/cursor.md](docs/client-guides/cursor.md) |
+
+Manual mode requires no API key for this project — every client uses its own login state.
+
+## Runner (optional)
+
+```bash
+# adapters.json: {"B": {"type": "manual"}}
+agent-dealer-cli watch tasks/task-demo-001 --adapters adapters.json
+```
+
+The Runner only wakes agents and monitors progress; it never fakes reviews on their behalf. See [docs/protocol.md](docs/protocol.md#runner).
+
+## Troubleshooting
+
+| Symptom | Fix |
+| --- | --- |
+| `MMAC-E401_LOCK_CONFLICT` | Read `locks/coordination.lock/owner.json`; an expired lease can be taken over safely |
+| `MMAC-E301_HASH_MISMATCH` | Recompute the hash with `shasum -a 256 <file>`; legitimate evolution is downgraded to a warning by the supersede rule |
+| Legacy task fails validation | Write an explicit `expected-warnings.json` grandfather in the task directory (see `tasks/task-20260810-001/`) |
+| All validator error codes | [docs/protocol.md#错误码](docs/protocol.md) |
+
+## Testing
+
+```bash
+python -m unittest discover -s tests        # 260 core tests
+python -m unittest tools.csv2json.tests.test_csv2json  # 22 sample tests
+python -m unittest tasks.task-20260810-002.fixtures.test_validate_fixtures  # 22 compatibility tests
+skill-up validate evals/eval.yaml           # agent behavior eval config
+```
+
+304 deterministic tests pass in total; core package coverage is 93%.
+
+## Directory Layout
+
+```text
+src/agent_dealer/   core library and CLI
+src/agent_collaboration/   legacy Python import compat layer (deprecated)
+tests/                     unit / integration / fixtures
+examples/quickstart/       golden sample (doctor reports zero errors)
+examples/legacy-expected-failure/  intentionally failing sample (expected-errors.json manifest)
+docs/                      protocol, security, and client guides
+references/                event schema, state machine, and rubric quick reference
+tasks/                     real collaboration task workspaces
+evals/                     skill-up agent behavior evals
 ```
