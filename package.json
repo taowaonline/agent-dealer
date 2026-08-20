@@ -13,9 +13,13 @@
   "files": [
     "bin/",
     "src/",
+    "!src/**/__pycache__",
+    "!src/**/*.egg-info",
     "SKILL.md",
     "references/",
-    "docs/",
+    "docs/protocol.md",
+    "docs/security.md",
+    "docs/client-guides/",
     "agents/",
     "LICENSE",
     "README.md"
