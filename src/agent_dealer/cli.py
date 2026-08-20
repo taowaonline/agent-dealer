@@ -1,4 +1,4 @@
-"""agent_dealer CLI（P1-02 / P1-03 / P1-04）。
+"""agent-dealer-cli CLI（Python 模块名 agent_dealer）（P1-02 / P1-03 / P1-04）。
 
 子命令：
   init      创建任务目录、control.md、目录结构并发布 TASK_CREATED
@@ -114,18 +114,6 @@ def models_catalog_path() -> str:
     return os.path.join(os.path.expanduser("~"), ".agent_dealer", "models.json")
 
 
-MODELS_CATALOG_TEMPLATE = {
-    "models": [
-        {"client": "claude", "model": "gpt-5.6-sol",
-         "efforts": ["low", "medium", "high"], "thinking": True},
-        {"client": "claude", "model": "glm-5.3",
-         "efforts": ["low", "medium", "high", "max"], "thinking": True},
-        {"client": "kimi", "model": "kimi-k2.5",
-         "efforts": ["low", "medium", "high"], "thinking": False},
-    ],
-}
-
-
 def load_models_catalog(path: str = None) -> List[Dict[str, Any]]:
     """读取用户声明的模型目录（client/model/efforts/thinking）。目录缺失=空；坏文件降级为空并提示。"""
     catalog_path = path or models_catalog_path()
@@ -135,7 +123,7 @@ def load_models_catalog(path: str = None) -> List[Dict[str, Any]]:
         with open(catalog_path, encoding="utf-8") as fh:
             data = json.load(fh)
     except (OSError, json.JSONDecodeError):
-        print("⚠ 模型目录 %s 解析失败，已忽略（可用 agent_dealer models --init 重建）" % catalog_path)
+        print("⚠ 模型目录 %s 解析失败，已忽略（删除后可用 --add / --init 重建）" % catalog_path)
         return []
     entries = data.get("models") if isinstance(data, dict) else data
     if not isinstance(entries, list):
@@ -150,6 +138,112 @@ def load_models_catalog(path: str = None) -> List[Dict[str, Any]]:
                 "thinking": bool(entry.get("thinking", False)),
             })
     return models
+
+
+def _save_models_catalog(path: str, models: List[Dict[str, Any]]) -> None:
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump({"models": models}, fh, ensure_ascii=False, indent=2)
+        fh.write("\n")
+    os.replace(tmp, path)
+
+
+def _parse_add_spec(spec: str) -> Dict[str, Any]:
+    """解析 --add CLIENT:MODEL[:EFFORTS[:THINKING]]。"""
+    parts = [p.strip() for p in spec.split(":")]
+    if len(parts) < 2 or not parts[0] or not parts[1]:
+        raise MMACError(E105_INVALID_CONTROL,
+                        "--add 格式为 client:model[:efforts[:thinking]]（收到 %r）" % spec)
+    if len(parts) > 4:
+        raise MMACError(E105_INVALID_CONTROL,
+                        "--add 最多 4 段 client:model:efforts:thinking（收到 %r）" % spec)
+    client, model = parts[0], parts[1]
+    efforts = ["low", "medium", "high"]
+    if len(parts) >= 3 and parts[2]:
+        efforts = [e.strip() for e in parts[2].split(",") if e.strip()]
+    bad = [e for e in efforts if e not in VALID_EFFORTS]
+    if bad:
+        raise MMACError(E105_INVALID_CONTROL,
+                        "--add effort 档位必须取自 %s（收到 %r）"
+                        % ("/".join(VALID_EFFORTS), ",".join(bad)))
+    thinking = False
+    if len(parts) >= 4:
+        if parts[3].lower() not in VALID_THINKING:
+            raise MMACError(E105_INVALID_CONTROL,
+                            "--add thinking 必须为 on/off（收到 %r）" % parts[3])
+        thinking = parts[3].lower() == "on"
+    return {"client": client, "model": model, "efforts": efforts, "thinking": thinking}
+
+
+def _add_models(catalog_path: str, specs: List[str]) -> int:
+    models = load_models_catalog(catalog_path)
+    for spec in specs:
+        entry = _parse_add_spec(spec)
+        models = [m for m in models
+                  if not (m["client"] == entry["client"] and m["model"] == entry["model"])]
+        models.append(entry)
+    _save_models_catalog(catalog_path, models)
+    for entry in [_parse_add_spec(s) for s in specs]:
+        print("✓ 已保存 %s %s（effort: %s | thinking: %s）→ %s" % (
+            entry["client"], entry["model"], "/".join(entry["efforts"]),
+            "支持" if entry["thinking"] else "不支持", catalog_path))
+    return 0
+
+
+def _prompt_models_wizard(catalog_path: str) -> List[Dict[str, Any]]:
+    """交互式选择本机可用模型（首次使用；选完由调用方保存）。"""
+    installed = [i["client"] for i in probe_clients() if i["installed"]]
+    print("开始配置模型目录（保存到 %s；Ctrl-C 取消）" % catalog_path)
+    if installed:
+        print("已安装客户端: %s" % ", ".join(installed))
+    default_client = installed[0] if installed else "claude"
+    models: List[Dict[str, Any]] = []
+    while True:
+        client = input("客户端 [%s]: " % default_client).strip() or default_client
+        model = input("模型 ID（回车跳过本条）: ").strip()
+        if model:
+            raw = input("effort 档位，逗号分隔 [low,medium,high]: ").strip()
+            if raw:
+                efforts = [e.strip() for e in raw.split(",") if e.strip()]
+                bad = [e for e in efforts if e not in VALID_EFFORTS]
+                if bad:
+                    print("✗ 无效档位 %s（允许 %s），本条改用默认" % (
+                        ",".join(bad), "/".join(VALID_EFFORTS)))
+                    efforts = ["low", "medium", "high"]
+            else:
+                efforts = ["low", "medium", "high"]
+            thinking = input("支持 thinking? [y/N]: ").strip().lower() in ("y", "yes", "on", "true", "1")
+            models.append({"client": client, "model": model,
+                           "efforts": efforts, "thinking": thinking})
+            print("✓ 已记录 %s %s（effort: %s | thinking: %s）" % (
+                client, model, "/".join(efforts), "支持" if thinking else "不支持"))
+        else:
+            print("（跳过本条）")
+        if input("继续添加? [Y/n]: ").strip().lower() in ("n", "no"):
+            return models
+
+
+def _init_models_catalog() -> int:
+    catalog_path = models_catalog_path()
+    if os.path.exists(catalog_path):
+        print("✗ 已存在 %s（不覆盖）；如需调整请用 --add 或手工编辑" % catalog_path)
+        return 1
+    if not sys.stdin.isatty():
+        print("✗ 非交互终端：用 --add client:model[:efforts[:thinking]] 添加，"
+              "或手工创建 %s" % catalog_path)
+        return 1
+    try:
+        models = _prompt_models_wizard(catalog_path)
+    except (EOFError, KeyboardInterrupt):
+        print("\n已取消，未保存。")
+        return 1
+    if not models:
+        print("未添加任何模型，未保存。")
+        return 1
+    _save_models_catalog(catalog_path, models)
+    print("✓ 模型目录已保存: %s（%d 个模型）" % (catalog_path, len(models)))
+    return 0
 
 
 def probe_clients() -> List[Dict[str, Any]]:
@@ -185,6 +279,8 @@ def probe_clients() -> List[Dict[str, Any]]:
 
 
 def cmd_models(args: argparse.Namespace) -> int:
+    if getattr(args, "add_models", None):
+        return _add_models(models_catalog_path(), args.add_models)
     if getattr(args, "init_catalog", False):
         return _init_models_catalog()
     probed = probe_clients()
@@ -212,8 +308,9 @@ def cmd_models(args: argparse.Namespace) -> int:
                     client, m["model"], "/".join(m["efforts"]) or "-",
                     "支持" if m["thinking"] else "不支持", mark))
     else:
-        print("模型目录 %s 不存在：agent_dealer models --init 生成模板后，"
-              "把本机可用模型及其原生档位填进去（如 gpt-5.6-sol high、glm-5.3 max）" % catalog_path)
+        print("模型目录 %s 未配置：`models --init` 交互式选择本机模型，"
+              "或 `--add client:model:efforts:thinking` 直接添加"
+              "（如 --add claude:glm-5.3:low,medium,high,max:on）" % catalog_path)
     print("提示: init 时用 --model/--effort/--thinking/--permission-mode/--role-config 配置档位")
     return 0
 
@@ -221,14 +318,22 @@ def cmd_models(args: argparse.Namespace) -> int:
 def _init_models_catalog() -> int:
     catalog_path = models_catalog_path()
     if os.path.exists(catalog_path):
-        print("✗ 已存在 %s（不覆盖）；手工编辑即可" % catalog_path)
+        print("✗ 已存在 %s（不覆盖）；如需调整请用 --add 或手工编辑" % catalog_path)
         return 1
-    os.makedirs(os.path.dirname(catalog_path), exist_ok=True)
-    with open(catalog_path, "w", encoding="utf-8") as fh:
-        json.dump(MODELS_CATALOG_TEMPLATE, fh, ensure_ascii=False, indent=2)
-        fh.write("\n")
-    print("✓ 模型目录模板已写入 %s" % catalog_path)
-    print("  请按本机实际情况编辑：每条 = client + model + efforts（原生档位）+ thinking")
+    if not sys.stdin.isatty():
+        print("✗ 非交互终端：用 --add client:model[:efforts[:thinking]] 添加，"
+              "或手工创建 %s" % catalog_path)
+        return 1
+    try:
+        models = _prompt_models_wizard(catalog_path)
+    except (EOFError, KeyboardInterrupt):
+        print("\n已取消，未保存。")
+        return 1
+    if not models:
+        print("未添加任何模型，未保存。")
+        return 1
+    _save_models_catalog(catalog_path, models)
+    print("✓ 模型目录已保存: %s（%d 个模型）" % (catalog_path, len(models)))
     return 0
 
 
@@ -377,7 +482,7 @@ def cmd_init(args: argparse.Namespace) -> int:
     store = TaskStore(task_dir)
     store.publish(event, owner=args.instance_id)
     print("✓ 已创建 %s（TASK_CREATED 已发布并通过校验）" % task_dir)
-    print("  下一步: agent_dealer next %s" % task_dir)
+    print("  下一步: agent-dealer-cli next %s" % task_dir)
     return 0
 
 
@@ -573,7 +678,7 @@ def cmd_event_prepare(args: argparse.Namespace) -> int:
     with open(out_path, "w", encoding="utf-8") as fh:
         json.dump(event, fh, ensure_ascii=False, indent=2)
     print("✓ 候选事件模板已写入 %s" % out_path)
-    print("  预校验: agent_dealer publish --dry-run %s %s" % (args.task_dir, out_path))
+    print("  预校验: agent-dealer-cli publish --dry-run %s %s" % (args.task_dir, out_path))
     return 0
 
 
@@ -785,7 +890,7 @@ def cmd_report(args: argparse.Namespace) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
-        prog="agent_dealer",
+        prog="agent-dealer-cli",
         description="跨模型 Agent 共享目录协作运行时（MMAC）")
     p.add_argument("--version", action="store_true", help="打印版本")
     sub = p.add_subparsers(dest="command")
@@ -824,7 +929,10 @@ def build_parser() -> argparse.ArgumentParser:
     sp = sub.add_parser("models", help="探测已安装的模型客户端与可用模型档位")
     sp.add_argument("--json", action="store_true")
     sp.add_argument("--init", action="store_true", dest="init_catalog",
-                    help="生成模型目录模板 %s（不存在时）" % models_catalog_path())
+                    help="交互式选择本机可用模型并保存到 %s（已存在则不覆盖）" % models_catalog_path())
+    sp.add_argument("--add", action="append", default=[], dest="add_models",
+                    metavar="CLIENT:MODEL[:EFFORTS[:THINKING]]",
+                    help="直接添加模型（upsert，可多次），如 --add claude:glm-5.3:low,medium,high,max:on")
     sp.set_defaults(func=cmd_models)
 
     sp = sub.add_parser("doctor", help="综合诊断")

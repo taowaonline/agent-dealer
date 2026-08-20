@@ -178,22 +178,81 @@ class ModelsCatalogTests(unittest.TestCase):
         self.assertEqual(data["models"], [])
         self.assertEqual(data["catalog_path"], self.catalog)
 
-    def test_models_init_creates_template(self):
+    def test_models_add_creates_and_upserts(self):
         with self._env():
             buf = io.StringIO()
             with redirect_stdout(buf):
-                code = cli.main(["models", "--init"])
+                code = cli.main([
+                    "models", "--add", "claude:gpt-5.6-sol:low,medium,high:on",
+                    "--add", "claude:glm-5.3:low,medium,high,max:on"])
         self.assertEqual(code, 0)
         with open(self.catalog) as fh:
-            data = json.load(fh)
-        self.assertTrue(any(m["model"] == "gpt-5.6-sol" for m in data["models"]))
-        # 二次 --init 不覆盖
-        with open(self.catalog, "a") as fh:
-            fh.write(" ")
+            models = json.load(fh)["models"]
+        self.assertEqual(len(models), 2)
+        self.assertEqual(models[1]["model"], "glm-5.3")
+        self.assertEqual(models[1]["efforts"], ["low", "medium", "high", "max"])
+        self.assertTrue(models[1]["thinking"])
+        # upsert：同 client+model 覆盖，不重复
         with self._env():
-            buf = io.StringIO()
-            with redirect_stdout(buf):
-                code = cli.main(["models", "--init"])
+            with redirect_stdout(io.StringIO()):
+                cli.main(["models", "--add", "claude:glm-5.3:high:off"])
+        with open(self.catalog) as fh:
+            models = json.load(fh)["models"]
+        self.assertEqual(len(models), 2)
+        glm = [m for m in models if m["model"] == "glm-5.3"][0]
+        self.assertEqual(glm["efforts"], ["high"])
+        self.assertFalse(glm["thinking"])
+
+    def test_models_add_defaults(self):
+        with self._env(), redirect_stdout(io.StringIO()):
+            code = cli.main(["models", "--add", "kimi:kimi-k2.5"])
+        self.assertEqual(code, 0)
+        with open(self.catalog) as fh:
+            m = json.load(fh)["models"][0]
+        self.assertEqual(m["efforts"], ["low", "medium", "high"])
+        self.assertFalse(m["thinking"])
+
+    def test_models_add_rejects_bad_specs(self):
+        cases = ["glm-5.3",                       # 缺 client
+                 "claude:",                        # 缺 model
+                 "claude:m:ultra",                 # 非法 effort
+                 "claude:m:high:maybe",            # 非法 thinking
+                 "claude:m:high:on:extra"]         # 段数超限
+        for i, spec in enumerate(cases):
+            with self._env(), redirect_stdout(io.StringIO()) as buf:
+                code = cli.main(["models", "--add", spec])
+            self.assertEqual(code, 1, spec)
+            self.assertIn("MMAC-E105_INVALID_CONTROL", buf.getvalue(), spec)
+            self.assertFalse(os.path.exists(self.catalog))
+
+    def test_models_init_wizard_saves_selection(self):
+        answers = iter(["", "gpt-5.6-sol", "low,medium,high", "y", "n"])
+        with self._env(), \
+                unittest.mock.patch("builtins.input", side_effect=lambda _: next(answers)), \
+                unittest.mock.patch.object(cli, "probe_clients", return_value=[]), \
+                unittest.mock.patch.object(sys.stdin, "isatty", return_value=True), \
+                redirect_stdout(io.StringIO()):
+            code = cli.main(["models", "--init"])
+        self.assertEqual(code, 0)
+        with open(self.catalog) as fh:
+            models = json.load(fh)["models"]
+        self.assertEqual(models, [{"client": "claude", "model": "gpt-5.6-sol",
+                                   "efforts": ["low", "medium", "high"], "thinking": True}])
+
+    def test_models_init_non_tty_suggests_add(self):
+        with self._env(), \
+                unittest.mock.patch.object(sys.stdin, "isatty", return_value=False), \
+                redirect_stdout(io.StringIO()) as buf:
+            code = cli.main(["models", "--init"])
+        self.assertEqual(code, 1)
+        self.assertIn("--add", buf.getvalue())
+        self.assertFalse(os.path.exists(self.catalog))
+
+    def test_models_init_refuses_existing(self):
+        with open(self.catalog, "w") as fh:
+            json.dump({"models": []}, fh)
+        with self._env(), redirect_stdout(io.StringIO()):
+            code = cli.main(["models", "--init"])
         self.assertEqual(code, 1)
 
     def test_models_hint_without_catalog(self):

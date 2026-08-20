@@ -18,7 +18,7 @@ GLM 系列模型（智谱 z.ai）可作为任何角色参与协作；GLM-4.5V �
 - GLM 的 thinking 开关与 effort 档位（low/medium/high/max）以 z.ai 官方文档为准；
   本协议只透传 `MMAC_MODEL` / `MMAC_EFFORT` / `MMAC_THINKING` / `MMAC_PERMISSION_MODE`
   与 argv 占位符 `{model} {effort} {thinking} {permission_mode}`，不编造客户端参数。
-- 模型目录（`agent_dealer models`）显示的各模型可用档位来自
+- 模型目录（`agent-dealer-cli models`）显示的各模型可用档位来自
   `~/.agent_dealer/models.json`，按本机订阅实际情况填写。
 
 ## Runner adapter 占位符

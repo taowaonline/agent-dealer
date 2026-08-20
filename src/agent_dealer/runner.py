@@ -138,7 +138,7 @@ class Runner:
         cfg = config or {}
         return (
             "读取共享目录中的 SKILL.md 和任务 %s 的 control.md、coordination.md。\n"
-            "你当前担任角色 %s。验证协议状态（python3 -m agent_dealer validate %s），"
+            "你当前担任角色 %s。验证协议状态（agent-dealer-cli validate %s 或 python3 -m agent_dealer validate），"
             "只处理发送给该角色且尚未处理的最新事件（event_id=%s，type=%s）。\n"
             "模型档位：model=%s effort=%s thinking=%s permission_mode=%s"
             "（按客户端原生参数启用；permission_mode=yolo 时无需确认直接执行）。\n"

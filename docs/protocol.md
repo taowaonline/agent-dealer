@@ -27,7 +27,7 @@
 
 ## 安全发布（publish）
 
-所有发布必须经过 `agent_dealer publish` / `TaskStore.publish()`：
+所有发布必须经过 `agent-dealer-cli publish` / `TaskStore.publish()`：
 
 1. 原子目录锁（`os.mkdir`）；
 2. 锁内重读链尾并回填 `previous_event_id`；
@@ -76,7 +76,7 @@ Agent 不再手工编辑 `coordination.md`。
 
 ## Runner
 
-`agent_dealer watch` 定时全量校验（不依赖易丢失的文件系统通知），
+`agent-dealer-cli watch` 定时全量校验（不依赖易丢失的文件系统通知），
 基于 `event_id` 去重并持久化到 `.runner-state.json`，重启不重复调度。
 仅在事件合法、recipient 匹配 adapter、任务非终态时触发。
 Runner 只唤醒和监控，不伪造业务审查。

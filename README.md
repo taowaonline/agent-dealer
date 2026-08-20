@@ -1,8 +1,8 @@
-# Agent Dealer
+# agent-dealer-cli
 
 厂商无关的跨模型 Agent 协作运行时。Claude Code、Codex、Kimi、Cursor 或本地模型不需要共享厂商会话，只通过共享目录里的结构化事件、版本化产物和 SHA-256 哈希即可完成规划、执行、审查与返工。
 
-**当前状态：Developer Preview（v0.2.1）。** 默认威胁模型为可信本地客户端（见 [SECURITY.md](SECURITY.md)）。
+**当前状态：Developer Preview（v0.5.0）。** 默认威胁模型为可信本地客户端（见 [SECURITY.md](SECURITY.md)）。
 
 ## 安装
 
@@ -16,53 +16,53 @@ python -m venv .venv && .venv/bin/pip install -e .
 
 ```bash
 ./scripts/install-global.sh
-agent_dealer --version
+agent-dealer-cli --version
 ```
 
 默认安装到 `~/.local/share/agent_dealer/venv`，并在 `~/.local/bin` 创建
-主命令 `agent_dealer`，并保留旧版兼容命令 `collab`。若 shell 找不到命令，把
+主命令 `agent-dealer-cli`，并保留旧版兼容命令 `agent_dealer`、`collab`。若 shell 找不到命令，把
 `~/.local/bin` 加入 `PATH`。更新代码后重新运行安装脚本即可升级全局命令。
 
 也可以通过 npm 安装（自动定位系统 Python ≥ 3.9，无需 pip）：
 
 ```bash
 npm install -g agent-dealer-cli
-agent-dealer --version
+agent-dealer-cli --version
 ```
 
 ## 五分钟 Quick Start
 
 ```bash
 # 0. 探测本机已安装的模型客户端及可用模型档位（gpt-5.6-sol high、glm-5.3 max 等）
-agent_dealer models          # 首次可先 agent_dealer models --init 生成模型目录模板并编辑
+agent-dealer-cli models          # 首次可先 agent-dealer-cli models --init 生成模型目录模板并编辑
 
 # 1. 创建任务（目录、control.md、TASK_CREATED 事件一步到位）；
 #    档位：--effort low|medium|high|max、--thinking on|off、
 #    --permission-mode yolo|confirm（默认 yolo）、--role-config 角色:键=值 按角色覆盖
-agent_dealer init task-demo-001 --title "我的第一个协作任务" --model kimi-k2.5 \
+agent-dealer-cli init task-demo-001 --title "我的第一个协作任务" --model kimi-k2.5 \
   --effort high --thinking on --role-config A:model=gpt-5.6-luna
 
 # 2. 诊断任务健康度
-agent_dealer doctor tasks/task-demo-001
+agent-dealer-cli doctor tasks/task-demo-001
 
 # 3. 查看下一步该谁行动
-agent_dealer next tasks/task-demo-001
+agent-dealer-cli next tasks/task-demo-001
 
 # 4. 准备并预校验一个事件（PLANNING_STARTED）
-agent_dealer event prepare tasks/task-demo-001 --type PLANNING_STARTED --role A --model gpt-5.6-luna --out tasks/task-demo-001/tmp/e.json
-agent_dealer publish --dry-run tasks/task-demo-001 tasks/task-demo-001/tmp/e.json
+agent-dealer-cli event prepare tasks/task-demo-001 --type PLANNING_STARTED --role A --model gpt-5.6-luna --out tasks/task-demo-001/tmp/e.json
+agent-dealer-cli publish --dry-run tasks/task-demo-001 tasks/task-demo-001/tmp/e.json
 
 # 5. 原子发布（锁 + 预校验 + 追加 + 复核，一次完成）
-agent_dealer publish tasks/task-demo-001 tasks/task-demo-001/tmp/e.json --instance-id my-session
+agent-dealer-cli publish tasks/task-demo-001 tasks/task-demo-001/tmp/e.json --instance-id my-session
 
 # 6. 任务报告：各 agent 贡献、评审评价与遗留 TODO（--json 机器可读）
-agent_dealer report tasks/task-demo-001
+agent-dealer-cli report tasks/task-demo-001
 ```
 
 一个从 `TASK_CREATED` 到 `REVIEW_APPROVED` 全部校验通过的完整样例在 [`examples/quickstart`](examples/quickstart)：
 
 ```bash
-agent_dealer doctor examples/quickstart
+agent-dealer-cli doctor examples/quickstart
 ```
 
 ## 角色与流程
@@ -93,7 +93,7 @@ CREATED → PLANNING → PLAN_READY → CLAIMED → EXECUTING → WORK_READY →
 
 ```bash
 # adapters.json: {"B": {"type": "manual"}}
-agent_dealer watch tasks/task-demo-001 --adapters adapters.json
+agent-dealer-cli watch tasks/task-demo-001 --adapters adapters.json
 ```
 
 Runner 只负责唤醒与监控，不替 Agent 伪造审查。详见 [docs/protocol.md](docs/protocol.md#runner)。

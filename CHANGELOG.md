@@ -4,15 +4,22 @@
 
 ## [0.5.0] - 2026-08-20
 
+### 变更
+
+- 项目与命令更名为 **agent-dealer-cli**：pip 分发名、主命令、skill/plugin 名称统一为
+  `agent-dealer-cli`（Python 模块名仍为 `agent_dealer`，`python -m agent_dealer` 不变；
+  旧命令 `agent_dealer`、`collab` 保留为兼容别名）。
+
 ### 新增
 
 - npm 发行：`npm install -g agent-dealer-cli`（零 Node 依赖 shim 定位系统 Python ≥ 3.9
-  运行包内源码；同时提供 `agent-dealer` / `agent_dealer` 两个命令）。
+  运行包内源码，命令 `agent-dealer-cli`）。
 - 客户端注册表扩展：探测覆盖 Claude Code、Codex、Kimi、DeepSeek、z.ai (GLM)、Cursor
   （`cursor-agent`/`cursor`）、Gemini；每客户端支持多候选命令名（如 zai 的 `zai`/`glm`）。
-- 模型目录：`agent_dealer models --init` 生成 `~/.agent_dealer/models.json`（可用
-  `MMAC_MODELS_FILE` 覆盖路径），声明各模型的 client/model/原生 effort 档位/thinking；
-  `agent_dealer models` 合并显示已装客户端与本机可用模型（如 gpt-5.6-sol high、
+- 模型目录（不预填）：`models --init` 交互式选择本机可用模型（客户端/模型/effort 档位/
+  thinking，选完保存到 `~/.agent_dealer/models.json`，`MMAC_MODELS_FILE` 可覆盖路径）；
+  或 `models --add client:model[:efforts[:thinking]]` 直接指定（upsert，可多次）。
+  `agent-dealer-cli models` 合并显示已装客户端与本机可用模型（如 gpt-5.6-sol high、
   glm-5.3 max）。
 - 新增 DeepSeek 与 z.ai (GLM) 客户端指南（`docs/client-guides/`）。
 

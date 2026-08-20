@@ -8,8 +8,7 @@
     "url": "git+https://github.com/taowaonline/agent_dealer.git"
   },
   "bin": {
-    "agent-dealer": "bin/agent-dealer.js",
-    "agent_dealer": "bin/agent-dealer.js"
+    "agent-dealer-cli": "bin/agent-dealer.js"
   },
   "files": [
     "bin/",
